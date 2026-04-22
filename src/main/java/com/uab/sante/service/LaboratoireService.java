@@ -81,6 +81,22 @@ public class LaboratoireService {
         PrescriptionExamen prescription = prescriptionExamenRepository.findById(prescriptionId)
                 .orElseThrow(() -> new RuntimeException("Examen non trouvé"));
 
+        // ✅ VÉRIFICATION CRITIQUE - Validation UAB requise
+        if (!"OUI".equals(prescription.getValidationUab())) {
+            String statut = prescription.getValidationUab() == null ? "NON_DEFINI" : prescription.getValidationUab();
+            throw new RuntimeException("❌ Cet examen n'a pas été validé par l'UAB. Réalisation impossible. Statut actuel: " + statut);
+        }
+
+        // Vérifier que l'examen a été payé
+        if (!prescription.getPaye()) {
+            throw new RuntimeException("L'examen doit d'abord être payé avant réalisation");
+        }
+
+        // Vérifier que l'examen n'est pas déjà réalisé
+        if (prescription.getRealise()) {
+            throw new RuntimeException("Cet examen a déjà été réalisé");
+        }
+
         // 2. Vérifier que l'examen a été payé
         if (!prescription.getPaye()) {
             throw new RuntimeException("L'examen doit d'abord être payé avant réalisation");
@@ -129,15 +145,59 @@ public class LaboratoireService {
         return saved;
     }
 
+    // service/LaboratoireService.java - Ajouter ces méthodes
+
+    /**
+     * Récupérer les examens validés par UAB mais non payés
+     */
+    public List<PrescriptionExamen> getExamensValidesNonPayes(Long laboratoireId) {
+        return prescriptionExamenRepository.findByLaboratoireIdAndValidationUabAndPayeFalseAndRealiseFalse(laboratoireId, "OUI");
+    }
+
+    /**
+     * Récupérer les examens payés non réalisés
+     */
+    public List<PrescriptionExamen> getExamensPayesNonRealises(Long laboratoireId) {
+        return prescriptionExamenRepository.findByLaboratoireIdAndPayeTrueAndRealiseFalse(laboratoireId);
+    }
+
+    // service/LaboratoireService.java - Ajouter cette méthode
+
+    // service/LaboratoireService.java
+    /**
+     * Rechercher des examens par CODEINTE, police, code risque et codeMemb (optionnel)
+     */
+    public List<PrescriptionExamen> rechercherParCriteres(String numPolice, String codeInte, String codeRisq, String codeMemb) {
+        System.out.println("=== RECHERCHE EXAMENS PAR CRITÈRES ===");
+        System.out.println("numPolice: " + numPolice);
+        System.out.println("codeInte: " + codeInte);
+        System.out.println("codeRisq: " + codeRisq);
+        System.out.println("codeMemb: " + codeMemb);
+
+        // ✅ Appel avec codeMemb
+        List<PrescriptionExamen> examens = prescriptionExamenRepository.findByCriteres(numPolice, codeInte, codeRisq, codeMemb);
+
+        // Afficher les statuts pour debug
+        for (PrescriptionExamen e : examens) {
+            System.out.println("Examen ID: " + e.getId() +
+                    ", Nom: " + e.getExamenNom() +
+                    ", validationUab: " + e.getValidationUab() +
+                    ", paye: " + e.getPaye());
+        }
+
+        return examens;
+    }
+
+
     // service/LaboratoireService.java
 
     /**
      * Récupérer les examens en attente de paiement pour un laboratoire
      */
     public List<PrescriptionExamen> getExamensEnAttentePaiement(Long laboratoireId) {
-        return prescriptionExamenRepository.findByLaboratoireIdAndPayeFalseAndRealiseFalse(laboratoireId);
+        // ✅ Filtrer par validationUab = 'OUI' ET paye = false ET realise = false
+        return prescriptionExamenRepository.findByLaboratoireIdAndValidationUabAndPayeFalseAndRealiseFalse(laboratoireId, "OUI");
     }
-
     /**
      * Récupérer les examens payés en attente de réalisation
      */
@@ -218,6 +278,10 @@ public class LaboratoireService {
                 .instructions(prescription.getInstructions())
                 .realise(prescription.getRealise())
                 .paye(prescription.getPaye())  // ✅ Ajouter ce champ
+                .codeInte(consultation.getCodeInte())      // CODEINTE de la consultation
+                .codeRisq(consultation.getCodeRisq())      // CODERISQ de la consultation
+                .validationUab(prescription.getValidationUab())  // ✅ IMPORTANT
+                .motifRejet(prescription.getMotifRejet())        // ✅
                 .prixTotal(prescription.getPrixTotal())
                 .montantTicketModerateur(prescription.getMontantTicketModerateur())
                 .montantPrisEnCharge(prescription.getMontantPrisEnCharge())
@@ -251,6 +315,23 @@ public class LaboratoireService {
         // 1. Récupérer la prescription
         PrescriptionExamen prescription = prescriptionExamenRepository.findById(request.getPrescriptionId())
                 .orElseThrow(() -> new RuntimeException("Examen non trouvé"));
+
+        // ✅ VÉRIFICATION CRITIQUE - Validation UAB requise
+        if (!"OUI".equals(prescription.getValidationUab())) {
+            String statut = prescription.getValidationUab() == null ? "NON_DEFINI" : prescription.getValidationUab();
+            throw new RuntimeException("❌ Cet examen n'a pas encore été validé par l'UAB. Paiement impossible. Statut actuel: " + statut);
+        }
+
+        // Vérifier que l'examen n'est pas déjà payé
+        if (prescription.getPaye()) {
+            throw new RuntimeException("Cet examen a déjà été payé");
+        }
+
+        // Vérifier que l'examen n'est pas déjà réalisé
+        if (prescription.getRealise()) {
+            throw new RuntimeException("Cet examen a déjà été réalisé");
+        }
+
 
         // 2. Récupérer la consultation
      //   Consultation consultation = prescription.getConsultation();

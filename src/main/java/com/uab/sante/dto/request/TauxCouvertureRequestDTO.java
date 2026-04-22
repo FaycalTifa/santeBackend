@@ -1,8 +1,8 @@
+// dto/request/TauxCouvertureRequestDTO.java
 package com.uab.sante.dto.request;
 
 import lombok.Data;
 import javax.validation.constraints.*;
-import java.time.LocalDate;
 
 @Data
 public class TauxCouvertureRequestDTO {
@@ -19,6 +19,4 @@ public class TauxCouvertureRequestDTO {
     @DecimalMin(value = "0.0", message = "Le taux doit être supérieur ou égal à 0")
     @DecimalMax(value = "100.0", message = "Le taux ne peut pas dépasser 100%")
     private Double tauxPourcentage;
-
-    private String description;
 }

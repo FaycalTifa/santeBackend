@@ -32,6 +32,9 @@ public class Examen {
     @Column(nullable = false, length = 200)
     private String nom;
 
+    @Column(name = "validation", length = 3)
+    private String validation = "NON";  // Valeur par défaut
+
     @Column(length = 50)
     @Enumerated(EnumType.STRING)
     private CategorieExamen categorie;

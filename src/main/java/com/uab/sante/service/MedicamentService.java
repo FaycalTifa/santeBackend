@@ -1,3 +1,4 @@
+// service/MedicamentService.java
 package com.uab.sante.service;
 
 import com.uab.sante.entities.Medicament;
@@ -14,6 +15,20 @@ public class MedicamentService {
 
     private final MedicamentRepository medicamentRepository;
 
+    // ✅ Nouvelle méthode: rechercher uniquement les médicaments autorisés (exclusion = 'NON')
+    public List<Medicament> searchAutorises(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return getAllAutorises();
+        }
+        return medicamentRepository.findByNomContainingIgnoreCaseAndActifTrueAndExclusionNot(keyword.trim(), "OUI");
+    }
+
+    // ✅ Nouvelle méthode: récupérer tous les médicaments autorisés
+    public List<Medicament> getAllAutorises() {
+        return medicamentRepository.findByActifTrueAndExclusionNotOrderByNomAsc("OUI");
+    }
+
+    // Méthodes existantes
     public List<Medicament> search(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return getAllActive();
@@ -35,24 +50,27 @@ public class MedicamentService {
         if (medicament.getCode() != null && medicamentRepository.findByCode(medicament.getCode()).isPresent()) {
             throw new RuntimeException("Un médicament avec ce code existe déjà");
         }
+        // Par défaut, exclusion = "NON"
+        if (medicament.getExclusion() == null) {
+            medicament.setExclusion("NON");
+        }
         medicament.setActif(true);
         return medicamentRepository.save(medicament);
     }
 
     @Transactional
     public Medicament createOrGet(String nom, String dosage, String forme) {
-        // Rechercher par nom exact
         List<Medicament> existants = medicamentRepository.findByNomContainingIgnoreCaseAndActifTrue(nom);
         if (!existants.isEmpty()) {
             return existants.get(0);
         }
 
-        // Créer un nouveau
         Medicament nouveau = new Medicament();
         nouveau.setNom(nom);
         nouveau.setDosage(dosage);
         nouveau.setForme(forme);
         nouveau.setActif(true);
+        nouveau.setExclusion("NON");  // ✅ Par défaut NON
         return medicamentRepository.save(nouveau);
     }
 
@@ -63,6 +81,7 @@ public class MedicamentService {
         existing.setDosage(medicament.getDosage());
         existing.setForme(medicament.getForme());
         existing.setPrixReference(medicament.getPrixReference());
+        existing.setExclusion(medicament.getExclusion());  // ✅ Permettre de mettre à jour l'exclusion
         return medicamentRepository.save(existing);
     }
 

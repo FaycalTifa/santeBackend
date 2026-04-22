@@ -1,16 +1,14 @@
+// service/TauxCouvertureService.java
 package com.uab.sante.service;
 
 import com.uab.sante.dto.request.TauxCouvertureRequestDTO;
-import com.uab.sante.dto.response.TauxCouvertureResponseDTO;
 import com.uab.sante.entities.TauxCouverture;
 import com.uab.sante.repository.TauxCouvertureRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,10 +17,18 @@ public class TauxCouvertureService {
     private final TauxCouvertureRepository tauxCouvertureRepository;
 
     /**
-     * Récupérer tous les taux actifs
+     * Récupérer tous les taux
      */
-    public List<TauxCouverture> getAllActive() {
-        return tauxCouvertureRepository.findAllActive();
+    public List<TauxCouverture> getAllTaux() {
+        return tauxCouvertureRepository.findAll();
+    }
+
+    /**
+     * Récupérer un taux par ID
+     */
+    public TauxCouverture getById(Long id) {
+        return tauxCouvertureRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Taux non trouvé"));
     }
 
     /**
@@ -30,7 +36,6 @@ public class TauxCouvertureService {
      */
     @Transactional
     public TauxCouverture create(TauxCouvertureRequestDTO request) {
-        // Vérifier si le code existe déjà
         if (request.getCode() != null && tauxCouvertureRepository.findByCode(request.getCode()).isPresent()) {
             throw new RuntimeException("Un taux avec ce code existe déjà");
         }
@@ -39,10 +44,31 @@ public class TauxCouvertureService {
                 .code(request.getCode())
                 .libelle(request.getLibelle())
                 .tauxPourcentage(request.getTauxPourcentage())
-                .dateDebut(LocalDate.now())
-                .actif(true)
                 .build();
 
         return tauxCouvertureRepository.save(taux);
+    }
+
+    /**
+     * Modifier un taux
+     */
+    @Transactional
+    public TauxCouverture update(Long id, TauxCouvertureRequestDTO request) {
+        TauxCouverture existing = getById(id);
+
+        existing.setCode(request.getCode());
+        existing.setLibelle(request.getLibelle());
+        existing.setTauxPourcentage(request.getTauxPourcentage());
+
+        return tauxCouvertureRepository.save(existing);
+    }
+
+    /**
+     * Supprimer un taux
+     */
+    @Transactional
+    public void delete(Long id) {
+        TauxCouverture taux = getById(id);
+        tauxCouvertureRepository.delete(taux);
     }
 }

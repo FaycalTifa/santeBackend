@@ -29,22 +29,12 @@ public class TauxCouverture {
     @Column(unique = true, length = 50)
     private String code;
 
-    @Column(name = "numero_police", nullable = false, length = 50)
-    private String numeroPolice;
 
     @Column(name = "taux_pourcentage", nullable = false)
     private Double tauxPourcentage;
 
     @Column(length = 100)
     private String libelle;
-
-    @Column(name = "date_debut", nullable = false)
-    private LocalDate dateDebut;
-
-    @Column(name = "date_fin")
-    private LocalDate dateFin;
-
-    private Boolean actif = true;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
@@ -54,8 +44,5 @@ public class TauxCouverture {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // ✅ AJOUTER LA RELATION AVEC ASSURE
-    @ManyToOne
-    @JoinColumn(name = "assure_id")
-    private Assure assure;
+
 }

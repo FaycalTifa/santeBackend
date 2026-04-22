@@ -12,15 +12,5 @@ import java.util.Optional;
 
 @Repository
 public interface TauxCouvertureRepository extends JpaRepository<TauxCouverture, Long> {
-
-    List<TauxCouverture> findByActifTrueOrderByTauxPourcentageAsc();
-
-    @Query("SELECT t FROM TauxCouverture t WHERE t.actif = true ORDER BY t.tauxPourcentage ASC")
-    List<TauxCouverture> findAllActive();
-
-    // Recherche par numero_police (sans relation JPA)
-    @Query("SELECT t FROM TauxCouverture t WHERE t.numeroPolice = :numeroPolice AND t.actif = true AND (t.dateFin IS NULL OR t.dateFin >= CURRENT_DATE)")
-    Optional<TauxCouverture> findActiveByNumeroPolice(@Param("numeroPolice") String numeroPolice);
-
     Optional<TauxCouverture> findByCode(String code);
 }

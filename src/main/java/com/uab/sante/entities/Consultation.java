@@ -25,7 +25,7 @@ public class Consultation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_feuille", unique = true, length = 50)
+    @Column(name = "numero_feuille",length = 50)
     private String numeroFeuille;
 
     @ManyToOne
@@ -87,6 +87,31 @@ public class Consultation {
 
     @Column(name = "validation_uab_date")
     private LocalDateTime validationUabDate;
+
+    @Column(name = "code_pres", length = 10)
+    private String codePres;
+
+    @Column(name = "libelle_pres", length = 100)
+    private String libellePres;
+
+    @Column(name = "montant_plafond")
+    private Double montantPlafond;
+    // entities/Consultation.java - Ajouter ces champs
+
+    @Column(name = "code_int", length = 50)
+    private String codeInte;  // CODEINTE
+
+    @Column(name = "code_risq", length = 50)
+    private String codeRisq;  // CODERISQ
+
+    @Column(name = "code_memb", length = 50)
+    private String codeMemb;
+
+    @Column(name = "montant_surplus")
+    private Double montantSurplus;
+
+    @Column(name = "numero_police")
+    private String numeroPolice;
 
     @ManyToOne
     @JoinColumn(name = "validation_uab_par")

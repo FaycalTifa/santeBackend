@@ -45,16 +45,27 @@ public class SecurityConfig {
                         .requestMatchers("/api/examens/**").permitAll()
                         .requestMatchers("/api/laboratoire/**").permitAll()
                         .requestMatchers("/api/assures/**").permitAll()
+                        .requestMatchers("/api/medecin/**").permitAll()
                         .requestMatchers("/api/medicaments/**").permitAll()
+                        .requestMatchers("/api/medicaments/import/**").permitAll()
                         .requestMatchers("/api/pharmacie/**").permitAll()
+                        .requestMatchers("/api/uab/examens/**").permitAll()
                         .requestMatchers("/api/polices-taux/**").permitAll()
                         .requestMatchers("/api/structures/**").permitAll()
+                        .requestMatchers("/api/polices/**").permitAll()        // ← Ajoute cette ligne
+                        .requestMatchers("/api/polices-externes/**").permitAll() // ← Ajoute cette ligne
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/api/uab/**").permitAll()
                         .requestMatchers("/api/utilisateurs/**").permitAll()
                         .requestMatchers("/api/taux-couverture/**").permitAll()
                         .requestMatchers("/api/structure/dashboard/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
 
                         // ✅ Routes de test (pour déboguer)
                         .requestMatchers("/api/test/**").permitAll()

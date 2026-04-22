@@ -52,4 +52,8 @@ public class Medicament implements Serializable {
     @JsonIgnore
     @OneToMany(mappedBy = "medicament")
     private List<PrescriptionMedicament> prescriptions = new ArrayList<>();
+
+    @Column(name = "exclusion", length = 3)
+    private String exclusion = "NON";  // Valeur par défaut
+
 }

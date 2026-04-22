@@ -156,20 +156,30 @@ public class ConsultationController {
         return ResponseEntity.ok(consultationService.toDTO(consultation));
     }
 
+    // controller/ConsultationController.java - Modifier l'endpoint
+
     /**
-     * Médecin: Récupérer les consultations en attente
+     * Médecin: Récupérer les consultations en attente avec filtres
      */
+    // controller/MedecinController.java
     @GetMapping("/medecin/attente")
     @PreAuthorize("hasRole('MEDECIN')")
     public ResponseEntity<List<ConsultationResponseDTO>> getConsultationsEnAttente(
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(required = false) String numPolice,
+            @RequestParam(required = false) String codeInte,
+            @RequestParam(required = false) String codeRisq,
+            @RequestParam(required = false) String codeMemb) {  // ✅ Ajouter codeMemb optionnel
 
-        System.out.println("======== GET CONSULTATIONS EN ATTENTE ========");
+        System.out.println("=== GET CONSULTATIONS EN ATTENTE CONTROLLER ===");
+        System.out.println("numPolice: " + numPolice);
+        System.out.println("codeInte: " + codeInte);
+        System.out.println("codeRisq: " + codeRisq);
+        System.out.println("codeMemb: " + codeMemb);
 
-        Utilisateur medecin = getCurrentUser(userDetails);
-        System.out.println("Médecin: " + medecin.getEmail());
+        List<Consultation> consultations = consultationService.getConsultationsEnAttentePrescription(
+                userDetails, numPolice, codeInte, codeRisq, codeMemb);
 
-        List<Consultation> consultations = consultationService.getConsultationsEnAttentePrescription(userDetails);
         return ResponseEntity.ok(consultations.stream()
                 .map(consultationService::toDTO)
                 .collect(Collectors.toList()));
@@ -279,6 +289,49 @@ public class ConsultationController {
         getCurrentUser(userDetails);
 
         List<PrescriptionExamen> examens = consultationService.getAllExamensRealises();
+
+        return ResponseEntity.ok(examens.stream()
+                .map(consultationService::toPrescriptionExamenDTO)
+                .collect(Collectors.toList()));
+    }
+
+
+
+    /**
+     * Médecin: Récupérer les demandes d'examens en attente de validation UAB
+     */
+    @GetMapping("/medecin/demandes-attente")
+    @PreAuthorize("hasRole('MEDECIN')")
+    public ResponseEntity<List<PrescriptionExamenResponseDTO>> getDemandesEnAttente(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        System.out.println("=== GET DEMANDES EN ATTENTE ===");
+
+        Utilisateur medecin = getCurrentUser(userDetails);
+        System.out.println("Médecin: " + medecin.getEmail());
+
+        List<PrescriptionExamen> examens = consultationService.getDemandesExamenEnAttente(medecin.getId());
+
+        return ResponseEntity.ok(examens.stream()
+                .map(consultationService::toPrescriptionExamenDTO)
+                .collect(Collectors.toList()));
+    }
+
+    /**
+     * Médecin: Récupérer les demandes par consultation
+     */
+    @GetMapping("/medecin/demandes/consultation/{consultationId}")
+    @PreAuthorize("hasRole('MEDECIN')")
+    public ResponseEntity<List<PrescriptionExamenResponseDTO>> getDemandesByConsultation(
+            @PathVariable Long consultationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        System.out.println("=== GET DEMANDES BY CONSULTATION ===");
+        System.out.println("Consultation ID: " + consultationId);
+
+        getCurrentUser(userDetails);
+
+        List<PrescriptionExamen> examens = consultationService.getDemandesExamenByConsultation(consultationId);
 
         return ResponseEntity.ok(examens.stream()
                 .map(consultationService::toPrescriptionExamenDTO)

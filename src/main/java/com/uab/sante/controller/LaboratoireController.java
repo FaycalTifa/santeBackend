@@ -99,6 +99,8 @@ public class LaboratoireController {
                 .collect(Collectors.toList()));
     }
 
+    
+
     /**
      * Détail d'une prescription d'examen
      */
@@ -235,5 +237,52 @@ public class LaboratoireController {
 
         PrescriptionExamen examen = laboratoireService.realiserExamen(request.getPrescriptionId(), request, biologiste);
         return ResponseEntity.ok(laboratoireService.toDTO(examen));
+    }
+
+    // controller/LaboratoireController.java - Ajouter cet endpoint
+
+    // controller/LaboratoireController.java
+    /**
+     * Rechercher des examens par CODEINTE, police, code risque et codeMemb (optionnel)
+     */
+    @GetMapping("/recherche-complete")
+    @PreAuthorize("hasAnyRole('CAISSIER_LABORATOIRE', 'BIOLOGISTE')")
+    public ResponseEntity<List<PrescriptionExamenResponseDTO>> rechercherParCriteres(
+            @RequestParam(required = false) String numPolice,
+            @RequestParam(required = false) String codeInte,
+            @RequestParam(required = false) String codeRisq,
+            @RequestParam(required = false) String codeMemb,  // ✅ Ajouter codeMemb optionnel
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        System.out.println("=== RECHERCHE EXAMENS PAR CRITÈRES ===");
+        System.out.println("numPolice: " + numPolice);
+        System.out.println("codeInte: " + codeInte);
+        System.out.println("codeRisq: " + codeRisq);
+        System.out.println("codeMemb: " + codeMemb);
+
+        getCurrentUser(userDetails);
+
+        List<PrescriptionExamen> examens = laboratoireService.rechercherParCriteres(numPolice, codeInte, codeRisq, codeMemb);
+
+        return ResponseEntity.ok(examens.stream()
+                .map(laboratoireService::toDTO)
+                .collect(Collectors.toList()));
+    }
+
+    // controller/LaboratoireController.java - Ajouter ces endpoints
+
+    @GetMapping("/caissier/examens-valides")
+    @PreAuthorize("hasRole('CAISSIER_LABORATOIRE')")
+    public ResponseEntity<List<PrescriptionExamenResponseDTO>> getExamensValidesNonPayes(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        System.out.println("=== GET EXAMENS VALIDES NON PAYES ===");
+        Utilisateur caissier = getCurrentUser(userDetails);
+        Long laboratoireId = caissier.getStructure().getId();
+
+        List<PrescriptionExamen> examens = laboratoireService.getExamensValidesNonPayes(laboratoireId);
+        return ResponseEntity.ok(examens.stream()
+                .map(laboratoireService::toDTO)
+                .collect(Collectors.toList()));
     }
 }

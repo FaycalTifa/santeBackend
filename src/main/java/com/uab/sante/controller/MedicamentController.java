@@ -22,6 +22,17 @@ public class MedicamentController {
         return ResponseEntity.ok(medicamentService.search(keyword));
     }
 
+// MedicamentController.java
+    @GetMapping("/search-autorises")
+    public ResponseEntity<List<Medicament>> searchAutorises(@RequestParam String keyword) {
+        return ResponseEntity.ok(medicamentService.searchAutorises(keyword));
+    }
+
+    @GetMapping("/autorises")
+    public ResponseEntity<List<Medicament>> getAllAutorises() {
+        return ResponseEntity.ok(medicamentService.getAllAutorises());
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('MEDECIN', 'PHARMACIEN', 'UAB_ADMIN')")
     public ResponseEntity<List<Medicament>> getAll() {

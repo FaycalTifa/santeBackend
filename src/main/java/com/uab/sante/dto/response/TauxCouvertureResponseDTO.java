@@ -12,6 +12,4 @@ public class TauxCouvertureResponseDTO {
     private String code;
     private String libelle;
     private Double tauxPourcentage;
-    private String description;
-    private Boolean actif;
 }

@@ -1,6 +1,7 @@
 package com.uab.sante.service;
 
 
+import com.uab.sante.dto.CalculRemboursementDTO;
 import com.uab.sante.dto.PrescriptionExamenDTO;
 import com.uab.sante.dto.PrescriptionMedicamentDTO;
 import com.uab.sante.dto.request.ConsultationCaisseRequestDTO;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,41 +38,42 @@ public class ConsultationService {
     private final TauxCouvertureRepository tauxCouvertureRepository;
     private final MedicamentService medicamentService;
     private final ExamenService examenService;
+    private final PlafonnementService plafonnementService;
     private final PrescriptionMedicamentRepository prescriptionMedicamentRepository;
     private final PrescriptionExamenRepository prescriptionExamenRepository;
     private final ExamenRepository examenRepository;
     private final MedicamentRepository medicamentRepository;
     private final NumberGenerator numberGenerator;
 
-    // ÉTAPE 1: Caisse hôpital - Créer consultation avec paiement
-    // ConsultationService.java
+
+    // service/ConsultationService.java - Modifier createByCaisse
+
+    // service/ConsultationService.java
     @Transactional
     public Consultation createByCaisse(ConsultationCaisseRequestDTO request, UserDetails userDetails) {
         System.out.println("=== CRÉATION CONSULTATION PAR CAISSE ===");
 
-        // 1. Récupérer l'utilisateur (caissier)
         Utilisateur caissier = getCaissier(userDetails);
 
-        // 2. Créer ou récupérer l'assuré
+        // Créer ou récupérer l'assuré avec CODEINTE, CODERISQ et CODEMEMB
         Assure assure = getOrCreateAssure(request);
 
-        // 3. Récupérer le taux sélectionné
         TauxCouverture taux = tauxCouvertureRepository.findById(request.getTauxId())
                 .orElseThrow(() -> new RuntimeException("Taux de couverture non trouvé"));
 
-        System.out.println("Taux sélectionné: " + taux.getTauxPourcentage() + "% - " + taux.getLibelle());
-
-        // 4. Calculer les montants
+        // Calculer les montants
         double totalHospitalier = request.getPrixConsultation() +
                 (request.getPrixActes() != null ? request.getPrixActes() : 0);
-        double prisEnCharge = totalHospitalier * (taux.getTauxPourcentage() / 100);
-        double ticketModerateur = totalHospitalier - prisEnCharge;
 
-        System.out.println("Total: " + totalHospitalier);
-        System.out.println("Pris en charge UAB: " + prisEnCharge);
-        System.out.println("Ticket modérateur patient: " + ticketModerateur);
+        double montantPlafond = request.getMontantPlafond() != null ? request.getMontantPlafond() : totalHospitalier;
+        double tauxRemboursement = taux.getTauxPourcentage();
 
-        // 5. Créer la consultation
+        // Calculer le remboursement avec plafonnement
+        double montantRembourseUAB = Math.min(totalHospitalier, montantPlafond) * (tauxRemboursement / 100);
+        double ticketModerateur = Math.min(totalHospitalier, montantPlafond) - montantRembourseUAB;
+        double surplus = (totalHospitalier > montantPlafond) ? (totalHospitalier - montantPlafond) : 0;
+        double montantTotalPatient = ticketModerateur + surplus;
+
         Consultation consultation = Consultation.builder()
                 .numeroFeuille(numberGenerator.generateNumeroFeuille())
                 .assure(assure)
@@ -78,18 +81,28 @@ public class ConsultationService {
                 .prixConsultation(request.getPrixConsultation())
                 .prixActes(request.getPrixActes())
                 .montantTotalHospitalier(totalHospitalier)
-                .tauxCouverture(taux.getTauxPourcentage())
-                .montantPrisEnCharge(prisEnCharge)
-                .montantTicketModerateur(ticketModerateur)
-                .montantPayePatient(ticketModerateur)
+                .tauxCouverture(tauxRemboursement)
+                .montantPrisEnCharge(montantRembourseUAB)
+                .montantTicketModerateur(montantTotalPatient)
+                .montantPayePatient(montantTotalPatient)
                 .structure(caissier.getStructure())
                 .statut("PAYEE_CAISSE")
                 .dateTransmission(LocalDate.now())
+                .codePres(request.getCodePres())
+                .libellePres(request.getLibellePres())
+                .montantPlafond(montantPlafond)
+                .montantSurplus(surplus)
+                .codeInte(request.getCodeInte())
+                .codeRisq(request.getCodeRisq())
+                .codeMemb(request.getCodeMemb())  // ✅ AJOUTER CODEMEMB
+                .numeroPolice(assure.getNumeroPolice())
                 .build();
 
         Consultation saved = consultationRepository.save(consultation);
         System.out.println("✅ Consultation créée avec ID: " + saved.getId());
-        System.out.println("Numéro feuille: " + saved.getNumeroFeuille());
+        System.out.println("CODEINTE sauvegardé: " + saved.getCodeInte());
+        System.out.println("CODERISQ sauvegardé: " + saved.getCodeRisq());
+        System.out.println("CODEMEMB sauvegardé: " + saved.getCodeMemb());  // ✅ LOG
 
         return saved;
     }
@@ -110,26 +123,78 @@ public class ConsultationService {
     /**
      * Créer ou récupérer l'assuré
      */
-    private Assure getOrCreateAssure(ConsultationCaisseRequestDTO request) {
-        return assureRepository.findByNumeroPolice(request.getNumeroPolice())
-                .orElseGet(() -> {
-                    System.out.println("Création d'un nouvel assuré pour police: " + request.getNumeroPolice());
-                    Assure newAssure = Assure.builder()
-                            .numeroPolice(request.getNumeroPolice())
-                            .nom(request.getNomPatient())
-                            .prenom(request.getPrenomPatient())
-                            .telephone(request.getTelephonePatient())
-                            .dateNaissance(request.getDateNaissance())
-                            .statut("ACTIF")
-                            .build();
-                    return assureRepository.save(newAssure);
-                });
-    }
+    // service/ConsultationService.java
 
+    /**
+     * Créer ou récupérer l'assuré - VERSION CORRIGÉE
+     */
+// service/ConsultationService.java
+
+    // service/ConsultationService.java
+
+    /**
+     * Créer un NOUVEL assuré pour chaque consultation
+     * (Ne pas réutiliser les anciens enregistrements)
+     */
+    private Assure getOrCreateAssure(ConsultationCaisseRequestDTO request) {
+        System.out.println("=== CRÉATION D'UN NOUVEL ASSURÉ POUR LA CONSULTATION ===");
+        System.out.println("Numéro police: " + request.getNumeroPolice());
+        System.out.println("CODEINTE: " + request.getCodeInte());
+        System.out.println("CODERISQ: " + request.getCodeRisq());
+        System.out.println("CODEMEMB: " + request.getCodeMemb());
+        System.out.println("Nom patient: " + request.getNomPatient());
+        System.out.println("Prénom patient: " + request.getPrenomPatient());
+
+        // ✅ Toujours créer un nouvel assuré, même s'il existe déjà
+        // Cela permet de garder un historique des consultations
+
+        String typeAssure = (request.getCodeMemb() != null && !request.getCodeMemb().isEmpty())
+                ? "BENEFICIAIRE"
+                : "PRINCIPAL";
+
+        Assure newAssure = Assure.builder()
+                .numeroPolice(request.getNumeroPolice())
+                .codeInte(request.getCodeInte())
+                .codeRisq(request.getCodeRisq())
+                .codeMemb(request.getCodeMemb())  // null pour principal, valeur pour bénéficiaire
+                .typeAssure(typeAssure)
+                .nom(request.getNomPatient())
+                .prenom(request.getPrenomPatient())
+                .telephone(request.getTelephonePatient() != null ? request.getTelephonePatient() : "")
+                .dateNaissance(request.getDateNaissance())
+                .statut("ACTIF")
+                .build();
+
+        Assure saved = assureRepository.save(newAssure);
+        System.out.println("✅ Nouvel assuré créé avec ID: " + saved.getId());
+
+        return saved;
+    }
     /**
      * Convertir en DTO
      */
     public ConsultationResponseDTO toDTO(Consultation consultation) {
+        // ✅ Récupérer le nom du médecin
+        String medecinNomValue = null;
+        if (consultation.getMedecin() != null) {
+            medecinNomValue = consultation.getMedecin().getPrenom() + " " + consultation.getMedecin().getNom();
+        }
+
+        // ✅ Récupérer le nom de la structure
+        String structureNomValue = null;
+        if (consultation.getStructure() != null) {
+            structureNomValue = consultation.getStructure().getNom();
+        }
+
+        // ✅ Convertir les prescriptions médicaments
+        List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO> medocsDTO = null;
+        if (consultation.getPrescriptionsMedicaments() != null && !consultation.getPrescriptionsMedicaments().isEmpty()) {
+            medocsDTO = consultation.getPrescriptionsMedicaments().stream()
+                    .map(this::toPrescriptionMedicamentDTO)
+                    .collect(Collectors.toList());
+        }
+
+
         return ConsultationResponseDTO.builder()
                 .id(consultation.getId())
                 .numeroFeuille(consultation.getNumeroFeuille())
@@ -143,8 +208,10 @@ public class ConsultationService {
                 .montantTicketModerateur(consultation.getMontantTicketModerateur())
                 .montantPayePatient(consultation.getMontantPayePatient())
                 .statut(consultation.getStatut())
-                .statut(consultation.getStatut())                    // ✅ Ajouter
+                .codeInte(consultation.getCodeInte())                    // ✅ Ajouter
                 .validationUab(consultation.getValidationUab())      // ✅
+                .medecinNom(medecinNomValue)
+                .structureNom(consultation.getStructure() != null ? consultation.getStructure().getNom() : null)
                 .prescriptionsValidees(consultation.getPrescriptionsValidees())
                 .build();
     }
@@ -162,33 +229,51 @@ public class ConsultationService {
 
 // service/ConsultationService.java
 
+    // service/ConsultationService.java - Remplacer la méthode existante
+
     /**
-     * Récupérer les consultations en attente de prescription pour un médecin
+     * Récupérer les consultations en attente de prescription pour un médecin avec filtres
      */
-    public List<Consultation> getConsultationsEnAttentePrescription(UserDetails userDetails) {
+    // service/ConsultationService.java
+    // service/ConsultationService.java
+    public List<Consultation> getConsultationsEnAttentePrescription(UserDetails userDetails,
+                                                                    String numPolice,
+                                                                    String codeInte,
+                                                                    String codeRisq,
+                                                                    String codeMemb) {
         System.out.println("=== GET CONSULTATIONS EN ATTENTE ===");
+        System.out.println("Filtres - numPolice: " + numPolice);
+        System.out.println("Filtres - codeInte: " + codeInte);
+        System.out.println("Filtres - codeRisq: " + codeRisq);
+        System.out.println("Filtres - codeMemb: " + codeMemb);
 
-        Utilisateur medecin;
-
-        if (userDetails == null) {
-            System.out.println("⚠️ UserDetails is null! Using default doctor");
-            medecin = utilisateurRepository.findByEmail("dr.kone@csm.ci")
-                    .orElseThrow(() -> new RuntimeException("Médecin par défaut non trouvé"));
-        } else {
-            medecin = utilisateurRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé: " + userDetails.getUsername()));
-        }
+        // ✅ Récupérer le médecin et sa structure
+        Utilisateur medecin = getMedecin(userDetails);
+        Long structureId = medecin.getStructure() != null ? medecin.getStructure().getId() : null;
 
         System.out.println("Médecin: " + medecin.getEmail());
+        System.out.println("Structure du médecin ID: " + structureId);
+        System.out.println("Structure du médecin Nom: " + (medecin.getStructure() != null ? medecin.getStructure().getNom() : "Aucune"));
 
-        List<Consultation> consultations = consultationRepository.findByMedecinIdAndStatutInOrderByDateConsultationDesc(
-                medecin.getId(), List.of("PAYEE_CAISSE"));
+        // ✅ Vérifier que le médecin est bien rattaché à une structure
+        if (structureId == null) {
+            System.out.println("❌ Le médecin n'est pas rattaché à une structure");
+            return new ArrayList<>();
+        }
 
-        System.out.println("Nombre de consultations en attente: " + consultations.size());
+        // ✅ Récupérer les consultations de la structure du médecin
+        List<Consultation> consultations = consultationRepository.findByStructureIdAndMedecinIdAndStatutInWithFilters(
+                structureId,  // ✅ Filtrer par la structure du médecin
+                null,         // Pas de filtre sur medecinId (pour voir toutes les consultations de la structure)
+                List.of("PAYEE_CAISSE"),
+                (numPolice != null && !numPolice.isEmpty()) ? numPolice : null,
+                (codeInte != null && !codeInte.isEmpty()) ? codeInte : null,
+                (codeRisq != null && !codeRisq.isEmpty()) ? codeRisq : null,
+                (codeMemb != null && !codeMemb.isEmpty()) ? codeMemb : null);
 
+        System.out.println("Nombre de consultations trouvées pour la structure: " + consultations.size());
         return consultations;
     }
-
     public List<Consultation> getAllForUAB(String statut, String numeroPolice) {
         if (numeroPolice != null && !numeroPolice.isEmpty()) {
             return consultationRepository.findByAssureNumeroPoliceOrderByDateConsultationDesc(numeroPolice);
@@ -275,29 +360,22 @@ public class ConsultationService {
         if (request.getPrescriptionsMedicaments() != null) {
             for (PrescriptionMedicamentDTO p : request.getPrescriptionsMedicaments()) {
 
-                // ✅ CRÉER OU RÉCUPÉRER LE MÉDICAMENT DANS LE RÉFÉRENTIEL
                 Medicament medicament;
-
                 if (p.getMedicamentId() != null) {
-                    // Cas 1: Le médecin a sélectionné un médicament existant
                     medicament = medicamentService.getById(p.getMedicamentId());
                 } else {
-                    // Cas 2: Le médecin a saisi un nouveau médicament
-                    // On le crée automatiquement dans la table medicaments
                     System.out.println("⚠️ Nouveau médicament détecté, création dans le référentiel: " + p.getMedicamentNom());
-
                     medicament = Medicament.builder()
                             .nom(p.getMedicamentNom())
                             .dosage(p.getDosage())
                             .forme(p.getForme())
                             .actif(true)
+                            .exclusion("NON")
                             .build();
-
                     medicament = medicamentRepository.save(medicament);
                     System.out.println("✅ Nouveau médicament créé avec ID: " + medicament.getId());
                 }
 
-                // Créer la prescription
                 PrescriptionMedicament prescription = new PrescriptionMedicament();
                 prescription.setNumeroOrdonnance(numberGenerator.generateNumeroOrdonnance());
                 prescription.setConsultation(consultation);
@@ -314,24 +392,22 @@ public class ConsultationService {
             }
         }
 
-        // 6. Ajouter les prescriptions examens (même logique)
+        // 6. Ajouter les prescriptions examens (VERSION CORRIGÉE - sans doublon)
         if (request.getPrescriptionsExamens() != null) {
             for (PrescriptionExamenDTO p : request.getPrescriptionsExamens()) {
 
                 // ✅ CRÉER OU RÉCUPÉRER L'EXAMEN DANS LE RÉFÉRENTIEL
                 Examen examen;
-
                 if (p.getExamenId() != null) {
                     examen = examenService.getById(p.getExamenId());
                 } else {
                     System.out.println("⚠️ Nouvel examen détecté, création dans le référentiel: " + p.getExamenNom());
-
                     examen = Examen.builder()
                             .nom(p.getExamenNom())
                             .code(p.getCodeActe())
                             .actif(true)
+                            .validation("NON")  // Par défaut NON (pas besoin validation UAB)
                             .build();
-
                     examen = examenRepository.save(examen);
                     System.out.println("✅ Nouvel examen créé avec ID: " + examen.getId());
                 }
@@ -345,6 +421,29 @@ public class ConsultationService {
                 prescription.setInstructions(p.getInstructions());
                 prescription.setDatePrescription(LocalDate.now());
 
+                // ✅ AJOUTER CES LIGNES - GESTION DE LA VALIDATION UAB
+                // Vérifier si l'examen nécessite une validation UAB
+                String validationExamen = examen.getValidation();
+                System.out.println("Examen: " + examen.getNom() + " - Validation requise: " + validationExamen);
+
+                if (validationExamen != null && "OUI".equals(validationExamen)) {
+                    // Examen nécessitant validation UAB
+                    prescription.setValidationUab("EN_ATTENTE");  // En attente de validation
+                    System.out.println("✅ Examen en attente de validation UAB");
+                } else {
+                    // Examen sans validation requise
+                    prescription.setValidationUab("OUI");  // Directement validé
+                    System.out.println("✅ Examen directement validé (pas besoin UAB)");
+                }
+
+                // Valeurs par défaut
+                prescription.setPaye(false);
+                prescription.setRealise(false);
+                prescription.setPrixTotal(null);
+                prescription.setMontantPrisEnCharge(null);
+                prescription.setMontantTicketModerateur(null);
+                prescription.setMontantPayePatient(null);
+
                 prescriptionExamenRepository.save(prescription);
                 consultation.getPrescriptionsExamens().add(prescription);
             }
@@ -353,9 +452,13 @@ public class ConsultationService {
         consultation.setPrescriptionsValidees(true);
         consultation.setStatut("PRESCRIPTIONS_FAITES");
 
-        return consultationRepository.save(consultation);
-    }
+        Consultation saved = consultationRepository.save(consultation);
+        System.out.println("=== FIN AJOUT DES PRESCRIPTIONS ===");
+        System.out.println("Nombre de médicaments: " + consultation.getPrescriptionsMedicaments().size());
+        System.out.println("Nombre d'examens: " + consultation.getPrescriptionsExamens().size());
 
+        return saved;
+    }
 
     /**
      * Récupérer le médecin (avec fallback)
@@ -418,6 +521,42 @@ public class ConsultationService {
         return prescriptionExamenRepository.findByRealiseTrue();
     }
 
+    // service/ConsultationService.java
+    // service/ConsultationService.java
+    /**
+     * Récupérer TOUS les examens ayant fait l'objet d'une demande de validation UAB
+     * (EN_ATTENTE, OUI, NON) pour un médecin avec filtres
+     */
+    public List<PrescriptionExamen> getDemandesValidationWithFilters(Long medecinId,
+                                                                     String numPolice,
+                                                                     String codeInte,
+                                                                     String codeRisq,
+                                                                     String codeMemb) {  // ✅ Ajouter codeMemb
+        System.out.println("=== RECHERCHE TOUTES LES DEMANDES DE VALIDATION ===");
+        System.out.println("Médecin ID: " + medecinId);
+        System.out.println("Filtres - numPolice: " + numPolice);
+        System.out.println("Filtres - codeInte: " + codeInte);
+        System.out.println("Filtres - codeRisq: " + codeRisq);
+        System.out.println("Filtres - codeMemb: " + codeMemb);
+
+        return prescriptionExamenRepository.findDemandesValidationWithFilters(medecinId, numPolice, codeInte, codeRisq, codeMemb);
+    }
+    // service/ConsultationService.java - Ajouter ces méthodes
+
+    /**
+     * Récupérer les demandes d'examens en attente pour un médecin
+     */
+    public List<PrescriptionExamen> getDemandesExamenEnAttente(Long medecinId) {
+        return prescriptionExamenRepository.findByConsultationMedecinIdAndValidationUab(medecinId, "EN_ATTENTE");
+    }
+
+    /**
+     * Récupérer les demandes d'examens par consultation
+     */
+    public List<PrescriptionExamen> getDemandesExamenByConsultation(Long consultationId) {
+        return prescriptionExamenRepository.findByConsultationIdAndValidationUab(consultationId, "EN_ATTENTE");
+    }
+
     // service/ConsultationService.java - Ajouter ces méthodes de conversion
 
     /**
@@ -464,6 +603,12 @@ public class ConsultationService {
                         prescription.getBiologiste().getPrenom() + " " + prescription.getBiologiste().getNom() : null)
                 .resultats(resultatsDTO)
                 .interpretation(prescription.getInterpretation())
+                // ✅ AJOUTER CES LIGNES ESSENTIELLES
+                .validationUab(prescription.getValidationUab())   // ← TRÈS IMPORTANT
+                .motifRejet(prescription.getMotifRejet())
+                .datePrescription(prescription.getDatePrescription())
+                .medecinNom(consultation.getMedecin() != null ?
+                        consultation.getMedecin().getPrenom() + " " + consultation.getMedecin().getNom() : null)
                 .build();
     }
 

@@ -296,18 +296,11 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createTauxCouverture(Assure assure, Double taux, String typeContrat, LocalDate dateDebut, LocalDate dateFin) {
-        if (tauxCouvertureRepository.findActiveByNumeroPolice(assure.getNumeroPolice()).isPresent()) {
-            return;
-        }
 
         TauxCouverture tauxCouverture = TauxCouverture.builder()
-                .numeroPolice(assure.getNumeroPolice())
                 .tauxPourcentage(taux)
                 .libelle("Couverture " + typeContrat + " - " + taux + "%")
                 .code("TAUX_" + typeContrat + "_" + taux.intValue())
-                .dateDebut(dateDebut != null ? dateDebut : LocalDate.now())
-                .dateFin(dateFin)
-                .actif(true)
                 .build();
 
         tauxCouvertureRepository.save(tauxCouverture);

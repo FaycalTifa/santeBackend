@@ -23,6 +23,9 @@ public class ConsultationCaisseRequestDTO {
 
     private LocalDate dateNaissance;
 
+    // ✅ NOUVEAU: Code membre (pour différencier les bénéficiaires)
+    private String codeMemb;  // NULL pour l'assuré principal
+
     @NotNull
     private LocalDate dateConsultation;
 
@@ -32,6 +35,21 @@ public class ConsultationCaisseRequestDTO {
 
     @Positive
     private Double prixActes;
+
+    @NotBlank
+    private String codeInte;  // ← AJOUTER
+
+    @NotBlank
+    private String codeRisq;  // ← AJOUTER
+
+    private String typeConsultation; // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR'
+
+    // Nouveaux champs pour le plafonnement
+    private String codePres;        // C01, C04, C00
+    private String libellePres;     // Libellé de la prestation
+    private Double montantPlafond;  // VALEPLAF
+
+
 
     // ✅ AJOUTEZ CE CHAMP
     @NotNull(message = "Le taux de couverture est requis")

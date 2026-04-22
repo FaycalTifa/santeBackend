@@ -39,6 +39,8 @@ public class ConsultationResponseDTO {
     private Boolean prescriptionsValidees;
 
     private String structureNom;
+    private String codeInte;      // CODEINTE
+    private String codeRisq;      // CODERISQ
 
     // Prescriptions
     private List<PrescriptionMedicamentResponseDTO> prescriptionsMedicaments;
@@ -56,6 +58,8 @@ public class ConsultationResponseDTO {
         private String patientNom;
         private String patientPrenom;
         private String patientPolice;
+        private String codeInte;
+        private String codeRisq;
 
         private String medicamentNom;
         private String medicamentDosage;

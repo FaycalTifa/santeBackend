@@ -1,3 +1,4 @@
+// repository/AssureRepository.java
 package com.uab.sante.repository;
 
 import com.uab.sante.entities.Assure;
@@ -13,11 +14,16 @@ public interface AssureRepository extends JpaRepository<Assure, Long> {
 
     Optional<Assure> findByNumeroPolice(String numeroPolice);
 
+    Optional<Assure> findByCodeMemb(String codeMemb);
+
+    // ✅ NOUVELLE MÉTHODE: Recherche par numéro police, codeInte ET codeRisq
+    @Query("SELECT a FROM Assure a WHERE a.numeroPolice = :numPolice AND a.codeInte = :codeInte AND a.codeRisq = :codeRisq")
+    Optional<Assure> findByNumeroPoliceAndCodeInteAndCodeRisq(
+            @Param("numPolice") String numPolice,
+            @Param("codeInte") String codeInte,
+            @Param("codeRisq") String codeRisq);
+
     boolean existsByNumeroPolice(String numeroPolice);
 
     Optional<Assure> findByTelephone(String telephone);
-
-
-    @Query("SELECT a FROM Assure a WHERE a.numeroPolice = :numeroPolice OR a.nom LIKE %:search% OR a.prenom LIKE %:search%")
-    Optional<Assure> searchByPoliceOrNom(@Param("numeroPolice") String numeroPolice, @Param("search") String search);
 }

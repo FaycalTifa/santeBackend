@@ -1,10 +1,10 @@
+// controller/PharmacieController.java
 package com.uab.sante.controller;
 
 import com.uab.sante.dto.request.PharmacieDelivranceRequestDTO;
 import com.uab.sante.dto.response.ConsultationResponseDTO;
 import com.uab.sante.entities.PrescriptionMedicament;
 import com.uab.sante.entities.Utilisateur;
-import com.uab.sante.repository.PrescriptionMedicamentRepository;
 import com.uab.sante.service.PharmacieService;
 import com.uab.sante.service.UtilisateurService;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +25,6 @@ public class PharmacieController {
 
     private final PharmacieService pharmacieService;
     private final UtilisateurService utilisateurService;
-    private final PrescriptionMedicamentRepository prescriptionMedicamentRepository;
-
 
     private Utilisateur getCurrentUser(UserDetails userDetails) {
         if (userDetails == null) {
@@ -40,10 +38,11 @@ public class PharmacieController {
      * Récupérer les prescriptions en attente
      */
     @GetMapping("/prescriptions-attente")
+    @PreAuthorize("hasAnyRole('PHARMACIEN', 'CAISSIER_PHARMACIE')")
     public ResponseEntity<List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO>> getPrescriptionsEnAttente(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        Utilisateur pharmacien = utilisateurService.findByEmailOrThrow(userDetails.getUsername());
+        Utilisateur pharmacien = getCurrentUser(userDetails);
         List<PrescriptionMedicament> prescriptions = pharmacieService.getPrescriptionsEnAttente(pharmacien.getStructure().getId());
 
         return ResponseEntity.ok(prescriptions.stream()
@@ -51,28 +50,36 @@ public class PharmacieController {
                 .collect(Collectors.toList()));
     }
 
+    // controller/PharmacieController.java
     /**
-     * Rechercher des prescriptions par numéro de police
+     * ✅ ENDPOINT : Rechercher des prescriptions par CODEINTE, police, code risque et codeMemb (optionnel)
      */
-    @GetMapping("/rechercheNonLivre/{numeroPolice}")
-    public ResponseEntity<List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO>> rechercherParPolicedELIVRER(
-            @PathVariable String numeroPolice,
+    @GetMapping("/recherche-complete")
+    @PreAuthorize("hasAnyRole('PHARMACIEN', 'CAISSIER_PHARMACIE')")
+    public ResponseEntity<List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO>> rechercherParCriteres(
+            @RequestParam(required = false) String numPolice,
+            @RequestParam(required = false) String codeInte,
+            @RequestParam(required = false) String codeRisq,
+            @RequestParam(required = false) String codeMemb,  // ✅ Ajouter codeMemb optionnel
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        // Vérifier l'authentification
-        utilisateurService.findByEmailOrThrow(userDetails.getUsername());
+        System.out.println("=== RECHERCHE PRESCRIPTIONS PAR CRITÈRES ===");
+        System.out.println("numPolice: " + numPolice);
+        System.out.println("codeInte: " + codeInte);
+        System.out.println("codeRisq: " + codeRisq);
+        System.out.println("codeMemb: " + codeMemb);
 
-        List<PrescriptionMedicament> prescriptions = pharmacieService.getPrescriptionsByPolice(numeroPolice);
+        getCurrentUser(userDetails);
+
+        List<PrescriptionMedicament> prescriptions = pharmacieService.rechercherParCriteres(numPolice, codeInte, codeRisq, codeMemb);
+
         return ResponseEntity.ok(prescriptions.stream()
                 .map(pharmacieService::toDTO)
                 .collect(Collectors.toList()));
     }
 
-
-
     /**
-     * Rechercher des prescriptions par numéro de police
-     * ✅ Retourne TOUTES les prescriptions (délivrées et non délivrées)
+     * Rechercher des prescriptions par numéro de police (ancien endpoint)
      */
     @GetMapping("/recherche/{numeroPolice}")
     @PreAuthorize("hasAnyRole('PHARMACIEN', 'CAISSIER_PHARMACIE')")
@@ -85,34 +92,26 @@ public class PharmacieController {
 
         getCurrentUser(userDetails);
 
-        // ✅ Appeler la méthode qui retourne TOUTES les prescriptions
         List<PrescriptionMedicament> prescriptions = pharmacieService.getPrescriptionsByPolice(numeroPolice);
-
-        System.out.println("Nombre de prescriptions trouvées: " + prescriptions.size());
-        prescriptions.forEach(p -> {
-            System.out.println("  - ID: " + p.getId() + ", Délivré: " + p.getDelivre());
-        });
 
         return ResponseEntity.ok(prescriptions.stream()
                 .map(pharmacieService::toDTO)
                 .collect(Collectors.toList()));
     }
 
-
     /**
      * Délivrer un médicament
      */
     @PostMapping("/delivrer")
+    @PreAuthorize("hasRole('PHARMACIEN')")
     public ResponseEntity<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO> delivrerMedicament(
             @Valid @RequestBody PharmacieDelivranceRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        Utilisateur pharmacien = utilisateurService.findByEmailOrThrow(userDetails.getUsername());
+        Utilisateur pharmacien = getCurrentUser(userDetails);
 
-        // ✅ Vérifier le rôle avec la nouvelle méthode hasRole()
         if (!pharmacien.hasRole("PHARMACIEN")) {
-            throw new RuntimeException("Seul un pharmacien peut délivrer des médicaments. Rôles actuels: " +
-                    pharmacien.getRoles().stream().map(r -> r.getCode()).collect(Collectors.joining(", ")));
+            throw new RuntimeException("Seul un pharmacien peut délivrer des médicaments");
         }
 
         PrescriptionMedicament prescription = pharmacieService.delivrerMedicament(request.getPrescriptionId(), request, pharmacien);
@@ -123,10 +122,11 @@ public class PharmacieController {
      * Historique des délivrances
      */
     @GetMapping("/historique")
+    @PreAuthorize("hasAnyRole('PHARMACIEN', 'CAISSIER_PHARMACIE')")
     public ResponseEntity<List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO>> getHistorique(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        Utilisateur pharmacien = utilisateurService.findByEmailOrThrow(userDetails.getUsername());
+        Utilisateur pharmacien = getCurrentUser(userDetails);
         List<PrescriptionMedicament> prescriptions = pharmacieService.getHistoriqueDelivrances(pharmacien.getStructure().getId());
 
         return ResponseEntity.ok(prescriptions.stream()
@@ -138,11 +138,12 @@ public class PharmacieController {
      * Détail d'une prescription
      */
     @GetMapping("/prescriptions/{id}")
+    @PreAuthorize("hasAnyRole('PHARMACIEN', 'CAISSIER_PHARMACIE')")
     public ResponseEntity<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO> getPrescriptionById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        utilisateurService.findByEmailOrThrow(userDetails.getUsername());
+        getCurrentUser(userDetails);
         PrescriptionMedicament prescription = pharmacieService.getPrescriptionById(id);
         return ResponseEntity.ok(pharmacieService.toDTO(prescription));
     }
@@ -155,9 +156,7 @@ public class PharmacieController {
     public ResponseEntity<List<ConsultationResponseDTO.PrescriptionMedicamentResponseDTO>> getAllPrescriptions(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        System.out.println("=== GET TOUTES LES PRESCRIPTIONS ===");
         Utilisateur pharmacien = getCurrentUser(userDetails);
-
         List<PrescriptionMedicament> prescriptions = pharmacieService.getAllPrescriptions(pharmacien.getStructure().getId());
 
         return ResponseEntity.ok(prescriptions.stream()

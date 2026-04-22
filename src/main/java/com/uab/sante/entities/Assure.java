@@ -1,3 +1,4 @@
+// entities/Assure.java
 package com.uab.sante.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -19,7 +20,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder  // Ajoutez cette annotation
+@Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Assure {
 
@@ -27,7 +28,7 @@ public class Assure {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_police", unique = true, nullable = false, length = 50)
+    @Column(name = "numero_police", length = 50)
     private String numeroPolice;
 
     @Column(nullable = false, length = 100)
@@ -41,6 +42,20 @@ public class Assure {
 
     @Column(columnDefinition = "TEXT")
     private String adresse;
+
+    @Column(name = "code_inte", length = 50)
+    private String codeInte;
+
+    @Column(name = "code_risq", length = 50)
+    private String codeRisq;
+
+    // ✅ NOUVEAU: Code membre (uniquement pour les bénéficiaires)
+    @Column(name = "code_memb", length = 50)
+    private String codeMemb;
+
+    // ✅ NOUVEAU: Type d'assuré
+    @Column(name = "type_assure", length = 20)
+    private String typeAssure; // "PRINCIPAL" ou "BENEFICIAIRE"
 
     @Column(length = 20)
     private String telephone;
@@ -59,6 +74,12 @@ public class Assure {
     @OneToMany(mappedBy = "assure", cascade = CascadeType.ALL)
     private List<Consultation> consultations = new ArrayList<>();
 
-/*    @OneToMany(mappedBy = "assure", cascade = CascadeType.ALL)
-    private List<TauxCouverture> tauxCouvertures = new ArrayList<>();*/
+    // ✅ Méthodes utilitaires
+    public boolean isPrincipal() {
+        return "PRINCIPAL".equals(this.typeAssure);
+    }
+
+    public boolean isBeneficiaire() {
+        return "BENEFICIAIRE".equals(this.typeAssure);
+    }
 }

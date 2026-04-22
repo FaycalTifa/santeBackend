@@ -20,6 +20,8 @@ public class PrescriptionExamenResponseDTO {
     private String instructions;
     private Boolean realise;
     private Boolean paye;           // ✅ AJOUTER CE CHAMP
+    private String codeInte;      // ✅ AJOUTER
+    private String codeRisq;      // ✅ AJOUTER
     private Double prixTotal;
     private Double montantTicketModerateur;
     private Double montantPrisEnCharge;
@@ -33,4 +35,12 @@ public class PrescriptionExamenResponseDTO {
     private LocalDate dateInterpretation;
     private String medecinInterpretationNom;
     private Double tauxCouverture;
+
+    // ✅ AJOUTER CES CHAMPS
+    private String validationUab;  // OUI, NON, EN_ATTENTE
+    private String motifRejet;     // Motif de rejet
+    private LocalDate datePrescription;
+    private String medecinNom;
+
+
 }

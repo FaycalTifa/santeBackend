@@ -34,9 +34,53 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
     List<Consultation> findByStatutOrderByDateConsultationDesc(String statut);
 
     // Recherche par médecin et statuts
-    @Query("SELECT c FROM Consultation c WHERE c.medecin.id = :medecinId AND c.statut IN :statuts ORDER BY c.dateConsultation DESC")
-    List<Consultation> findByMedecinIdAndStatutInOrderByDateConsultationDesc(@Param("medecinId") Long medecinId, @Param("statuts") List<String> statuts);
+    List<Consultation> findByMedecinIdAndStatutInOrderByDateConsultationDesc(Long medecinId, List<String> statuts);
 
+    // ✅ NOUVELLE MÉTHODE : Recherche avec filtres
+    // repository/ConsultationRepository.java
+    // repository/ConsultationRepository.java
+    // repository/ConsultationRepository.java
+    // repository/ConsultationRepository.java
+    @Query("SELECT c FROM Consultation c " +
+            "LEFT JOIN FETCH c.assure a " +
+            "WHERE (:medecinId IS NULL OR c.medecin.id = :medecinId) " +  // ← Ajouter cette ligne
+            "AND c.statut IN :statuts " +
+            "AND (:numPolice IS NULL OR a.numeroPolice = :numPolice) " +
+            "AND (:codeInte IS NULL OR a.codeInte = :codeInte) " +
+            "AND (:codeRisq IS NULL OR a.codeRisq = :codeRisq) " +
+            "ORDER BY c.dateConsultation DESC")
+    List<Consultation> findByMedecinIdAndStatutInWithFilters(
+            @Param("medecinId") Long medecinId,
+            @Param("statuts") List<String> statuts,
+            @Param("numPolice") String numPolice,
+            @Param("codeInte") String codeInte,
+            @Param("codeRisq") String codeRisq);
+
+
+    // repository/ConsultationRepository.java
+    // repository/ConsultationRepository.java
+    /**
+     * Récupérer les consultations d'une structure spécifique avec filtres
+     * (Pour que le médecin ne voie que les consultations de sa propre structure)
+     */
+    @Query("SELECT c FROM Consultation c " +
+            "LEFT JOIN FETCH c.assure a " +
+            "WHERE c.structure.id = :structureId " +           // ✅ Filtrer par structure
+            "AND (:medecinId IS NULL OR c.medecin.id = :medecinId) " +
+            "AND c.statut IN :statuts " +
+            "AND (:numPolice IS NULL OR a.numeroPolice = :numPolice) " +
+            "AND (:codeInte IS NULL OR a.codeInte = :codeInte) " +
+            "AND (:codeRisq IS NULL OR a.codeRisq = :codeRisq) " +
+            "AND (:codeMemb IS NULL OR a.codeMemb = :codeMemb) " +
+            "ORDER BY c.dateConsultation DESC")
+    List<Consultation> findByStructureIdAndMedecinIdAndStatutInWithFilters(
+            @Param("structureId") Long structureId,
+            @Param("medecinId") Long medecinId,
+            @Param("statuts") List<String> statuts,
+            @Param("numPolice") String numPolice,
+            @Param("codeInte") String codeInte,
+            @Param("codeRisq") String codeRisq,
+            @Param("codeMemb") String codeMemb);
     // Recherche par structure et statuts
     @Query("SELECT c FROM Consultation c WHERE c.structure.id = :structureId AND c.statut IN :statuts ORDER BY c.dateConsultation DESC")
     List<Consultation> findByStructureIdAndStatutInOrderByDateConsultationDesc(@Param("structureId") Long structureId, @Param("statuts") List<String> statuts);

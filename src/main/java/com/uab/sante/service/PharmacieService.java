@@ -1,3 +1,4 @@
+// service/PharmacieService.java
 package com.uab.sante.service;
 
 import com.uab.sante.dto.request.PharmacieDelivranceRequestDTO;
@@ -26,20 +27,31 @@ public class PharmacieService {
     }
 
     /**
-     * ✅ AJOUTER CETTE MÉTHODE - Récupérer les prescriptions par numéro de police
+     * ✅ NOUVELLE MÉTHODE : Rechercher des prescriptions par CODEINTE, police et code risque
+     */
+    public List<PrescriptionMedicament> rechercherParCriteres(String numPolice, String codeInte, String codeRisq, String codeMemb) {
+        System.out.println("=== RECHERCHE PRESCRIPTIONS PAR CRITÈRES ===");
+        System.out.println("numPolice: " + numPolice);
+        System.out.println("codeInte: " + codeInte);
+        System.out.println("codeRisq: " + codeRisq);
+        System.out.println("codeMemb: " + codeMemb);
+
+        return prescriptionMedicamentRepository.findByCriteres(numPolice, codeInte, codeRisq, codeMemb);
+    }
+
+    /**
+     * Récupérer les prescriptions par numéro de police
      */
     public List<PrescriptionMedicament> getPrescriptionsByPoliceNonLivre(String numeroPolice) {
         return prescriptionMedicamentRepository.findByConsultationAssureNumeroPoliceAndDelivreFalse(numeroPolice);
     }
 
     /**
-     * ✅ Récupérer TOUTES les prescriptions (délivrées et non délivrées) par numéro de police
+     * Récupérer TOUTES les prescriptions (délivrées et non délivrées) par numéro de police
      */
     public List<PrescriptionMedicament> getPrescriptionsByPolice(String numeroPolice) {
-        // Ne pas filtrer sur delivre=false pour afficher toutes les prescriptions
         return prescriptionMedicamentRepository.findByConsultationAssureNumeroPolice(numeroPolice);
     }
-
 
     /**
      * Récupérer l'historique des délivrances
@@ -73,35 +85,24 @@ public class PharmacieService {
         System.out.println("Prescription ID: " + prescriptionId);
         System.out.println("Pharmacien: " + pharmacien.getEmail());
 
-        // 1. Récupérer la prescription
         PrescriptionMedicament prescription = prescriptionMedicamentRepository.findById(prescriptionId)
                 .orElseThrow(() -> new RuntimeException("Prescription non trouvée"));
 
-        // 2. Vérifier que le médicament n'est pas déjà délivré
         if (prescription.getDelivre()) {
             throw new RuntimeException("Ce médicament a déjà été délivré");
         }
 
-        // 3. Vérifier la quantité
         if (request.getQuantiteDelivree() > prescription.getQuantitePrescitee()) {
             throw new RuntimeException("La quantité délivrée ne peut pas dépasser la quantité prescrite");
         }
 
-        // 4. Récupérer la consultation pour le taux
         Consultation consultation = prescription.getConsultation();
         Double taux = consultation.getTauxCouverture();
 
-        // ✅ LOGS POUR VÉRIFIER LE TAUX
-        System.out.println("=== INFORMATIONS CONSULTATION ===");
-        System.out.println("Consultation ID: " + consultation.getId());
-        System.out.println("Taux couverture stocké: " + consultation.getTauxCouverture() + "%");
-
-        // 5. Calculer les montants
         double prixTotal = request.getPrixUnitaire() * request.getQuantiteDelivree();
         double montantPrisEnCharge = prixTotal * (taux / 100);
         double montantTicketModerateur = prixTotal - montantPrisEnCharge;
 
-        // 6. Mettre à jour la prescription
         prescription.setPrixUnitaire(request.getPrixUnitaire());
         prescription.setPrixTotal(prixTotal);
         prescription.setQuantiteDelivree(request.getQuantiteDelivree());
@@ -113,25 +114,18 @@ public class PharmacieService {
         prescription.setMontantTicketModerateur(montantTicketModerateur);
         prescription.setMontantPayePatient(montantTicketModerateur);
 
-        // 7. Sauvegarder
         PrescriptionMedicament saved = prescriptionMedicamentRepository.save(prescription);
 
         System.out.println("✅ Médicament délivré avec succès");
-        System.out.println("Prix total: " + prixTotal);
-        System.out.println("Ticket modérateur patient: " + montantTicketModerateur);
-        System.out.println("UAB rembourse: " + montantPrisEnCharge);
-
         return saved;
     }
 
     /**
      * Convertir en DTO
      */
-    // PharmacieService.java
     public ConsultationResponseDTO.PrescriptionMedicamentResponseDTO toDTO(PrescriptionMedicament prescription) {
         Consultation consultation = prescription.getConsultation();
 
-        // ✅ Vérifiez que consultation et assure ne sont pas null
         if (consultation == null || consultation.getAssure() == null) {
             System.err.println("Erreur: consultation ou assure null pour prescription ID: " + prescription.getId());
             return ConsultationResponseDTO.PrescriptionMedicamentResponseDTO.builder()
@@ -142,22 +136,18 @@ public class PharmacieService {
 
         Assure assure = consultation.getAssure();
         Double taux = consultation.getTauxCouverture();
-        System.out.println("=== MAPPING PRESCRIPTION MEDICAMENT ===");
-        System.out.println("Prescription ID: " + prescription.getId());
-        System.out.println("Patient Nom: " + assure.getNom());
-        System.out.println("Patient Prenom: " + assure.getPrenom());
-        System.out.println("Patient Police: " + assure.getNumeroPolice());
-        System.out.println("Taux de couverture de la consultation: " + taux);
 
         return ConsultationResponseDTO.PrescriptionMedicamentResponseDTO.builder()
                 .id(prescription.getId())
                 .numeroOrdonnance(prescription.getNumeroOrdonnance())
                 .consultationId(consultation.getId())
                 .consultationNumeroFeuille(consultation.getNumeroFeuille())
-                // ✅ Ces trois champs sont essentiels
                 .patientNom(assure.getNom())
                 .patientPrenom(assure.getPrenom())
                 .patientPolice(assure.getNumeroPolice())
+                // ✅ AJOUTER CODEINTE ET CODERISQ
+                .codeInte(consultation.getCodeInte())
+                .codeRisq(consultation.getCodeRisq())
                 .medicamentNom(prescription.getMedicamentNom())
                 .medicamentDosage(prescription.getMedicamentDosage())
                 .medicamentForme(prescription.getMedicamentForme())
@@ -167,11 +157,10 @@ public class PharmacieService {
                 .delivre(prescription.getDelivre())
                 .prixUnitaire(prescription.getPrixUnitaire())
                 .prixTotal(prescription.getPrixTotal())
-                .tauxCouverture(taux)  // ✅ Ajouter cette ligne
+                .tauxCouverture(taux)
                 .montantTicketModerateur(prescription.getMontantTicketModerateur())
                 .montantPrisEnCharge(prescription.getMontantPrisEnCharge())
                 .dateDelivrance(prescription.getDateDelivrance())
-                .tauxCouverture(consultation.getTauxCouverture())
                 .pharmacieNom(prescription.getPharmacie() != null ? prescription.getPharmacie().getNom() : null)
                 .pharmacienNom(prescription.getPharmacien() != null ?
                         prescription.getPharmacien().getPrenom() + " " + prescription.getPharmacien().getNom() : null)

@@ -1,12 +1,12 @@
+// entities/PrescriptionExamen.java
 package com.uab.sante.entities;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,7 +18,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EntityListeners(AuditingEntityListener.class)
+@Builder
 public class PrescriptionExamen {
 
     @Id
@@ -32,16 +32,12 @@ public class PrescriptionExamen {
     @JoinColumn(name = "consultation_id", nullable = false)
     private Consultation consultation;
 
-    // Saisi par le MEDECIN
     @ManyToOne
     @JoinColumn(name = "examen_id")
     private Examen examen;
 
     @Column(name = "examen_nom", nullable = false, length = 200)
     private String examenNom;
-
-    @Column(name = "examen_categorie", length = 50)
-    private String examenCategorie;
 
     @Column(name = "code_acte", length = 20)
     private String codeActe;
@@ -52,7 +48,6 @@ public class PrescriptionExamen {
     @Column(name = "date_prescription")
     private LocalDate datePrescription;
 
-    // Saisi par la CAISSE LABORATOIRE
     @Column(name = "prix_total")
     private Double prixTotal;
 
@@ -73,7 +68,6 @@ public class PrescriptionExamen {
     @Column(name = "date_paiement")
     private LocalDate datePaiement;
 
-    // Saisi par le BIOLOGISTE
     private Boolean realise = false;
 
     @ManyToOne
@@ -97,11 +91,9 @@ public class PrescriptionExamen {
     @OneToMany(mappedBy = "prescriptionExamen", cascade = CascadeType.ALL)
     private List<Interpretation> interpretations = new ArrayList<>();
 
-    // ✅ AJOUTER CETTE RELATION
     @OneToMany(mappedBy = "prescriptionExamen", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ResultatExamen> resultatsList = new ArrayList<>();
 
-    // ✅ AJOUTER CES CHAMPS POUR L'INTERPRÉTATION
     @ManyToOne
     @JoinColumn(name = "medecin_interpretation_id")
     private Utilisateur medecinInterpretation;
@@ -112,6 +104,20 @@ public class PrescriptionExamen {
     @Column(name = "date_interpretation")
     private LocalDate dateInterpretation;
 
+    // ✅ AJOUTER CES CHAMPS POUR LA VALIDATION UAB
+    @Column(name = "validation_uab")
+    private String validationUab = "EN_ATTENTE";
 
+    @Column(name = "validation_uab_date")
+    private LocalDateTime validationUabDate;
 
+    @Column(name = "statut_validation", length = 30)
+    private String statutValidation = "EN_ATTENTE"; // EN_ATTENTE, VALIDE, REJETE
+
+    @ManyToOne
+    @JoinColumn(name = "validation_uab_par")
+    private Utilisateur validationUabPar;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;
 }

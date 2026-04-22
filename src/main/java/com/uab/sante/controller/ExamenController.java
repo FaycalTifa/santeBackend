@@ -22,6 +22,15 @@ public class ExamenController {
         return ResponseEntity.ok(examenService.search(keyword));
     }
 
+    // ✅ NOUVEAU ENDPOINT : Rechercher les examens autorisés
+    @GetMapping("/search-autorises")
+    @PreAuthorize("hasAnyRole('MEDECIN', 'BIOLOGISTE', 'UAB_ADMIN')")
+    public ResponseEntity<List<Examen>> searchAutorises(@RequestParam String keyword) {
+        return ResponseEntity.ok(examenService.searchAutorises(keyword));
+    }
+
+
+
     @GetMapping
     @PreAuthorize("hasAnyRole('MEDECIN', 'BIOLOGISTE', 'UAB_ADMIN')")
     public ResponseEntity<List<Examen>> getAll() {
