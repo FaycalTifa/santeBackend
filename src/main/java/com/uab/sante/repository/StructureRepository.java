@@ -16,5 +16,7 @@ public interface StructureRepository extends JpaRepository<Structure, Long> {
 
     List<Structure> findByActifTrueOrderByNomAsc();
 
+
+
     List<Structure> findByNomContainingIgnoreCaseAndActifTrue(String nom);
 }

@@ -81,6 +81,12 @@ public class PrescriptionExamen {
     @Column(name = "date_realisation")
     private LocalDate dateRealisation;
 
+    @Column(name = "validation_uab_bool")
+    private Boolean validationUabBool = false;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;  // ✅ NOUVEAU - Pour stocker le motif de rejet
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -114,10 +120,11 @@ public class PrescriptionExamen {
     @Column(name = "statut_validation", length = 30)
     private String statutValidation = "EN_ATTENTE"; // EN_ATTENTE, VALIDE, REJETE
 
+
+
     @ManyToOne
     @JoinColumn(name = "validation_uab_par")
     private Utilisateur validationUabPar;
 
-    @Column(name = "motif_rejet", columnDefinition = "TEXT")
-    private String motifRejet;
+
 }

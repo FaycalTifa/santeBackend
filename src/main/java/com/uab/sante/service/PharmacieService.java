@@ -107,6 +107,7 @@ public class PharmacieService {
         prescription.setPrixTotal(prixTotal);
         prescription.setQuantiteDelivree(request.getQuantiteDelivree());
         prescription.setDelivre(true);
+        prescription.setValidationUabBool(true);
         prescription.setPharmacie(pharmacien.getStructure());
         prescription.setPharmacien(pharmacien);
         prescription.setDateDelivrance(LocalDate.now());

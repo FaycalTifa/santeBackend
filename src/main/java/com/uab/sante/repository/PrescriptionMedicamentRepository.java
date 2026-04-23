@@ -41,4 +41,10 @@ public interface PrescriptionMedicamentRepository extends JpaRepository<Prescrip
             @Param("codeInte") String codeInte,
             @Param("codeRisq") String codeRisq,
             @Param("codeMemb") String codeMemb);
+
+    // repository/PrescriptionMedicamentRepository.java
+    List<PrescriptionMedicament> findByDelivreTrue();
+
+    @Query("SELECT pm FROM PrescriptionMedicament pm WHERE pm.consultation.assure.numeroPolice = :numeroPolice AND pm.delivre = true")
+    List<PrescriptionMedicament> findByConsultationAssureNumeroPoliceAndDelivreTrue(@Param("numeroPolice") String numeroPolice);
 }

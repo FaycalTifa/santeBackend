@@ -49,26 +49,22 @@ public class ConsultationService {
     // service/ConsultationService.java - Modifier createByCaisse
 
     // service/ConsultationService.java
+    // service/ConsultationService.java - Dans createByCaisse()
     @Transactional
     public Consultation createByCaisse(ConsultationCaisseRequestDTO request, UserDetails userDetails) {
         System.out.println("=== CRÉATION CONSULTATION PAR CAISSE ===");
 
         Utilisateur caissier = getCaissier(userDetails);
-
-        // Créer ou récupérer l'assuré avec CODEINTE, CODERISQ et CODEMEMB
         Assure assure = getOrCreateAssure(request);
-
         TauxCouverture taux = tauxCouvertureRepository.findById(request.getTauxId())
                 .orElseThrow(() -> new RuntimeException("Taux de couverture non trouvé"));
 
         // Calculer les montants
         double totalHospitalier = request.getPrixConsultation() +
                 (request.getPrixActes() != null ? request.getPrixActes() : 0);
-
         double montantPlafond = request.getMontantPlafond() != null ? request.getMontantPlafond() : totalHospitalier;
         double tauxRemboursement = taux.getTauxPourcentage();
 
-        // Calculer le remboursement avec plafonnement
         double montantRembourseUAB = Math.min(totalHospitalier, montantPlafond) * (tauxRemboursement / 100);
         double ticketModerateur = Math.min(totalHospitalier, montantPlafond) - montantRembourseUAB;
         double surplus = (totalHospitalier > montantPlafond) ? (totalHospitalier - montantPlafond) : 0;
@@ -87,6 +83,8 @@ public class ConsultationService {
                 .montantPayePatient(montantTotalPatient)
                 .structure(caissier.getStructure())
                 .statut("PAYEE_CAISSE")
+                .paye(true)  // ✅ Le patient a payé à la caisse
+                .validationUabBool(true)
                 .dateTransmission(LocalDate.now())
                 .codePres(request.getCodePres())
                 .libellePres(request.getLibellePres())
@@ -94,15 +92,13 @@ public class ConsultationService {
                 .montantSurplus(surplus)
                 .codeInte(request.getCodeInte())
                 .codeRisq(request.getCodeRisq())
-                .codeMemb(request.getCodeMemb())  // ✅ AJOUTER CODEMEMB
+                .codeMemb(request.getCodeMemb())
                 .numeroPolice(assure.getNumeroPolice())
                 .build();
 
         Consultation saved = consultationRepository.save(consultation);
         System.out.println("✅ Consultation créée avec ID: " + saved.getId());
-        System.out.println("CODEINTE sauvegardé: " + saved.getCodeInte());
-        System.out.println("CODERISQ sauvegardé: " + saved.getCodeRisq());
-        System.out.println("CODEMEMB sauvegardé: " + saved.getCodeMemb());  // ✅ LOG
+        System.out.println("Payé: " + saved.getPaye());
 
         return saved;
     }
@@ -209,7 +205,7 @@ public class ConsultationService {
                 .montantPayePatient(consultation.getMontantPayePatient())
                 .statut(consultation.getStatut())
                 .codeInte(consultation.getCodeInte())                    // ✅ Ajouter
-                .validationUab(consultation.getValidationUab())      // ✅
+                .validationUab(consultation.getValidationUabBool())      // ✅
                 .medecinNom(medecinNomValue)
                 .structureNom(consultation.getStructure() != null ? consultation.getStructure().getNom() : null)
                 .prescriptionsValidees(consultation.getPrescriptionsValidees())
@@ -297,9 +293,9 @@ public class ConsultationService {
 
         // ✅ Avant validation
         System.out.println("Avant validation - statut: " + consultation.getStatut());
-        System.out.println("Avant validation - validationUab: " + consultation.getValidationUab());
+        System.out.println("Avant validation - validationUab: " + consultation.getValidationUabBool());
 
-        consultation.setValidationUab(true);
+        consultation.setValidationUabBool(true);
         consultation.setValidationUabDate(LocalDateTime.now());
         consultation.setValidationUabPar(uabAdmin);
         consultation.setStatut("VALIDEE_UAB");
@@ -308,7 +304,7 @@ public class ConsultationService {
 
         // ✅ Après validation
         System.out.println("Après validation - statut: " + saved.getStatut());
-        System.out.println("Après validation - validationUab: " + saved.getValidationUab());
+        System.out.println("Après validation - validationUab: " + saved.getValidationUabBool());
 
         return saved;
     }
@@ -319,7 +315,7 @@ public class ConsultationService {
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
         Consultation consultation = getById(consultationId);
-        consultation.setValidationUab(false);
+        consultation.setValidationUabBool(false);
         consultation.setValidationUabDate(LocalDateTime.now());
         consultation.setValidationUabPar(uabAdmin);
         consultation.setStatut("REJETEE");

@@ -323,34 +323,19 @@ public class LaboratoireService {
         }
 
         // Vérifier que l'examen n'est pas déjà payé
-        if (prescription.getPaye()) {
+        if (prescription.getPaye() != null && prescription.getPaye()) {
             throw new RuntimeException("Cet examen a déjà été payé");
         }
 
         // Vérifier que l'examen n'est pas déjà réalisé
-        if (prescription.getRealise()) {
-            throw new RuntimeException("Cet examen a déjà été réalisé");
-        }
-
-
-        // 2. Récupérer la consultation
-     //   Consultation consultation = prescription.getConsultation();
-
-
-
-        // 2. Vérifier que l'examen n'est pas déjà payé
-        if (prescription.getPaye()) {
-            throw new RuntimeException("Cet examen a déjà été payé");
-        }
-
-        // 3. Vérifier que l'examen n'est pas déjà réalisé
-        if (prescription.getRealise()) {
+        if (prescription.getRealise() != null && prescription.getRealise()) {
             throw new RuntimeException("Cet examen a déjà été réalisé");
         }
 
         // 4. Récupérer la consultation pour le taux
         Consultation consultation = prescription.getConsultation();
         Double taux = consultation.getTauxCouverture();
+
         // ✅ LOGS POUR VÉRIFIER LE TAUX
         System.out.println("=== INFORMATIONS CONSULTATION ===");
         System.out.println("Consultation ID: " + consultation.getId());
@@ -359,7 +344,6 @@ public class LaboratoireService {
         System.out.println("Montant total hospitalier: " + consultation.getMontantTotalHospitalier());
         System.out.println("Montant pris en charge UAB: " + consultation.getMontantPrisEnCharge());
         System.out.println("Ticket modérateur patient: " + consultation.getMontantTicketModerateur());
-
 
         // 5. Calculer les montants
         double prixTotal = request.getPrixTotal();
@@ -372,7 +356,16 @@ public class LaboratoireService {
         prescription.setMontantTicketModerateur(montantTicketModerateur);
         prescription.setMontantPayePatient(montantTicketModerateur);
         prescription.setPaye(true);
+        prescription.setValidationUabBool(true);
         prescription.setDatePaiement(LocalDate.now());
+
+        // ✅ AJOUTER LE LABORATOIRE (structure du caissier)
+        if (caissier.getStructure() != null) {
+            prescription.setLaboratoire(caissier.getStructure());
+            System.out.println("✅ Laboratoire associé: " + caissier.getStructure().getNom() + " (ID: " + caissier.getStructure().getId() + ")");
+        } else {
+            System.out.println("⚠️ Attention: Le caissier n'a pas de structure associée!");
+        }
 
         // 7. Sauvegarder
         PrescriptionExamen saved = prescriptionExamenRepository.save(prescription);
@@ -380,6 +373,7 @@ public class LaboratoireService {
         System.out.println("✅ Paiement enregistré avec succès");
         System.out.println("Montant encaissé: " + montantTicketModerateur + " FCFA");
         System.out.println("UAB remboursera: " + montantPrisEnCharge + " FCFA");
+        System.out.println("Laboratoire: " + (saved.getLaboratoire() != null ? saved.getLaboratoire().getNom() : "Non défini"));
 
         return saved;
     }

@@ -32,6 +32,10 @@ public class Structure {
     @Column(nullable = false, length = 200)
     private String nom;
 
+    @ManyToOne
+    @JoinColumn(name = "structure_parente_id")
+    private Structure structureParente;
+
     @Column(name = "code_structure", unique = true, nullable = false, length = 50)
     private String codeStructure;
 

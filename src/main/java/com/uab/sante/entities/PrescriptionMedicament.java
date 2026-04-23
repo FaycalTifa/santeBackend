@@ -39,6 +39,15 @@ public class PrescriptionMedicament {
     @Column(name = "medicament_nom", nullable = false, length = 200)
     private String medicamentNom;
 
+    @Column(name = "validation_uab_bool")
+    private Boolean validationUabBool = true;
+
+    @Column(name = "validation_uab_date")
+    private LocalDateTime validationUabDate;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;  // ✅ NOUVEAU - Pour stocker le motif de rejet
+
     @Column(name = "medicament_dosage", length = 50)
     private String medicamentDosage;
 

@@ -1,3 +1,4 @@
+// controller/UABController.java
 package com.uab.sante.controller;
 
 import com.uab.sante.dto.DashboardStatsDTO;
@@ -5,6 +6,8 @@ import com.uab.sante.dto.response.ConsultationResponseDTO;
 import com.uab.sante.dto.response.DossierUABResponseDTO;
 import com.uab.sante.dto.response.ValidationResponseDTO;
 import com.uab.sante.entities.Consultation;
+import com.uab.sante.entities.PrescriptionExamen;
+import com.uab.sante.entities.PrescriptionMedicament;
 import com.uab.sante.service.ConsultationService;
 import com.uab.sante.service.UABService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/uab")
@@ -29,7 +32,11 @@ public class UABController {
      */
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStatsDTO> getDashboard() {
-        return ResponseEntity.ok(uabService.getDashboardStats());
+        System.out.println("=== UABController.getDashboard() ===");
+        DashboardStatsDTO stats = uabService.getDashboardStats();
+        System.out.println("Total dossiers: " + stats.getTotalDossiers());
+        System.out.println("Nombre de structures: " + (stats.getStructures() != null ? stats.getStructures().size() : 0));
+        return ResponseEntity.ok(stats);
     }
 
     /**
@@ -40,22 +47,61 @@ public class UABController {
             @RequestParam(required = false) String statut,
             @RequestParam(required = false) String numeroPolice) {
 
+        System.out.println("=== UABController.getAllDossiers() ===");
+        System.out.println("Statut: " + statut);
+        System.out.println("Numéro police: " + numeroPolice);
+
         List<DossierUABResponseDTO> dossiers = uabService.getAllDossiers(statut, numeroPolice);
+        System.out.println("Nombre de dossiers: " + dossiers.size());
+
         return ResponseEntity.ok(dossiers);
     }
 
     /**
-     * Valider un dossier
+     * ✅ Valider un dossier (consultation, médicament ou examen)
      */
     @PutMapping("/dossiers/{id}/valider")
     public ResponseEntity<ValidationResponseDTO> validerDossier(
             @PathVariable Long id,
+            @RequestParam String type,
             @RequestParam(required = false) String commentaire) {
+
+        System.out.println("=== VALIDATION DOSSIER ===");
+        System.out.println("ID: " + id);
+        System.out.println("Type: " + type);
+
+        Object result = uabService.validerDossier(id, type, commentaire);
+
+        Double montantRembourse = null;
+        if (result instanceof Consultation) {
+            montantRembourse = uabService.calculerMontantRemboursement(id);
+        }
+
+        return ResponseEntity.ok(ValidationResponseDTO.builder()
+                .dossierId(id)
+                .type(type)
+                .valide(true)
+                .message("Dossier validé avec succès")
+                .montantRembourse(montantRembourse)
+                .build());
+    }
+
+    /**
+     * Valider une consultation (ancienne méthode - gardée pour compatibilité)
+     */
+    @PutMapping("/dossiers/{id}/valider-consultation")
+    public ResponseEntity<ValidationResponseDTO> validerConsultation(
+            @PathVariable Long id,
+            @RequestParam(required = false) String commentaire) {
+
+        System.out.println("=== VALIDATION CONSULTATION ===");
+        System.out.println("ID: " + id);
 
         Consultation consultation = uabService.validerConsultation(id, commentaire);
 
         return ResponseEntity.ok(ValidationResponseDTO.builder()
-                .consultationId(consultation.getId())
+                .dossierId(consultation.getId())
+                .type("CONSULTATION")
                 .valide(true)
                 .message("Dossier validé avec succès")
                 .montantRembourse(uabService.calculerMontantRemboursement(id))
@@ -70,21 +116,81 @@ public class UABController {
             @PathVariable Long id,
             @RequestParam String motif) {
 
+        System.out.println("=== REJET DOSSIER ===");
+        System.out.println("ID: " + id);
+        System.out.println("Motif: " + motif);
+
         Consultation consultation = uabService.rejeterConsultation(id, motif);
 
         return ResponseEntity.ok(ValidationResponseDTO.builder()
-                .consultationId(consultation.getId())
+                .dossierId(consultation.getId())
+                .type("CONSULTATION")
                 .valide(false)
                 .message("Dossier rejeté")
+                .motifRejet(motif)
                 .build());
     }
 
     /**
-     * Détail d'un dossier
+     * Détail d'un dossier (consultation)
      */
     @GetMapping("/dossiers/{id}")
-    public ResponseEntity<ConsultationResponseDTO> getDossierDetail(@PathVariable Long id) {
+    public ResponseEntity<ConsultationResponseDTO> getDossierDetailSSSS(@PathVariable Long id) {
+        System.out.println("=== DETAIL DOSSIER ===");
+        System.out.println("ID: " + id);
+
         Consultation consultation = consultationService.getById(id);
         return ResponseEntity.ok(consultationService.toDTO(consultation));
     }
+
+    // UABController.java - Ajouter cet endpoint
+
+    /**
+     * Récupérer les détails complets d'un dossier (avec prescriptions et médecin)
+     */
+    // UABController.java
+    @GetMapping("/dossier/{id}")
+    @PreAuthorize("hasRole('UAB_ADMIN')")
+    public ResponseEntity<Map<String, Object>> getDossierDetail(
+            @PathVariable Long id,
+            @RequestParam(required = false) String type) {
+        System.out.println("=== GET DOSSIER DETAIL ===");
+        System.out.println("ID: " + id);
+        System.out.println("Type: " + type);
+
+        Map<String, Object> dossier = uabService.getDossierDetail(id);
+        if (dossier == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dossier);
+    }
+
+    /**
+     * Détail d'une prescription médicament
+     */
+    @GetMapping("/prescriptions/medicament/{id}")
+    public ResponseEntity<PrescriptionMedicament> getPrescriptionMedicamentDetail(@PathVariable Long id) {
+        System.out.println("=== DETAIL PRESCRIPTION MEDICAMENT ===");
+        System.out.println("ID: " + id);
+
+        PrescriptionMedicament prescription = uabService.getPrescriptionMedicamentById(id);
+        return ResponseEntity.ok(prescription);
+    }
+
+    /**
+     * Détail d'une prescription examen
+     */
+    @GetMapping("/prescriptions/examen/{id}")
+    public ResponseEntity<PrescriptionExamen> getPrescriptionExamenDetail(@PathVariable Long id) {
+        System.out.println("=== DETAIL PRESCRIPTION EXAMEN ===");
+        System.out.println("ID: " + id);
+
+        PrescriptionExamen examen = uabService.getPrescriptionExamenById(id);
+        return ResponseEntity.ok(examen);
+    }
+
+
+
+
+
 }

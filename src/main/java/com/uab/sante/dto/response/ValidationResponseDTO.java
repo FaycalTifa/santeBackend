@@ -7,8 +7,10 @@ import lombok.Data;
 @Builder
 public class ValidationResponseDTO {
 
-    private Long consultationId;
+    private Long dossierId;
+    private String type;
     private Boolean valide;
     private String message;
     private Double montantRembourse;
+    private String motifRejet;
 }

@@ -23,4 +23,22 @@ public class DossierUABResponseDTO {
     private LocalDate dateCreation;
     private Long structureId;  // ✅ Ajouter ce champ
     private String origine; // "HOPITAL", "PHARMACIE", "LABORATOIRE"
+    private String codeInte;
+    private String codeRisq;
+    private String medecinNom;
+    private String medicamentNom;
+    // ✅ Pour les examens
+    private String examenNom;
+    private String examenCode;
+    private LocalDate datePaiement;
+    private Boolean realise;
+    private Boolean paye;
+    private String instructions;
+
+    // ✅ Pour les médicaments
+    private String medicamentDosage;
+    private String medicamentForme;
+    private Integer quantite;
+    private Integer quantiteDelivree;
+    private Boolean delivre;
 }

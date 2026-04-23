@@ -20,6 +20,11 @@ public interface PrescriptionExamenRepository extends JpaRepository<Prescription
 
     List<PrescriptionExamen> findByRealiseTrue();
 
+    /**
+     * ✅ Trouver tous les examens d'un laboratoire spécifique
+     */
+    List<PrescriptionExamen> findByLaboratoireId(Long laboratoireId);
+
     List<PrescriptionExamen> findByLaboratoireIdAndPayeFalseAndRealiseFalse(Long laboratoireId);
 
     List<PrescriptionExamen> findByLaboratoireIdAndPayeTrueAndRealiseFalse(Long laboratoireId);
@@ -133,4 +138,10 @@ public interface PrescriptionExamenRepository extends JpaRepository<Prescription
             @Param("codeInte") String codeInte,
             @Param("codeRisq") String codeRisq,
             @Param("codeMemb") String codeMemb);  // ✅ Ajouter paramètre
+
+    // repository/PrescriptionExamenRepository.java
+    List<PrescriptionExamen> findByPayeTrue();
+
+    @Query("SELECT pe FROM PrescriptionExamen pe WHERE pe.consultation.assure.numeroPolice = :numeroPolice AND pe.paye = true")
+    List<PrescriptionExamen> findByConsultationAssureNumeroPoliceAndPayeTrue(@Param("numeroPolice") String numeroPolice);
 }

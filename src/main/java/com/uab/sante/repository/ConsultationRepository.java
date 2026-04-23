@@ -33,6 +33,12 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
     // Recherche par statut
     List<Consultation> findByStatutOrderByDateConsultationDesc(String statut);
 
+    // repository/ConsultationRepository.java
+    List<Consultation> findByStatut(String statut);
+
+    @Query("SELECT c FROM Consultation c WHERE c.assure.numeroPolice = :numeroPolice AND c.statut = :statut")
+    List<Consultation> findByAssureNumeroPoliceAndStatut(@Param("numeroPolice") String numeroPolice, @Param("statut") String statut);
+
     // Recherche par médecin et statuts
     List<Consultation> findByMedecinIdAndStatutInOrderByDateConsultationDesc(Long medecinId, List<String> statuts);
 
@@ -82,22 +88,43 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
             @Param("codeRisq") String codeRisq,
             @Param("codeMemb") String codeMemb);
     // Recherche par structure et statuts
-    @Query("SELECT c FROM Consultation c WHERE c.structure.id = :structureId AND c.statut IN :statuts ORDER BY c.dateConsultation DESC")
-    List<Consultation> findByStructureIdAndStatutInOrderByDateConsultationDesc(@Param("structureId") Long structureId, @Param("statuts") List<String> statuts);
 
-    // Dossiers en attente de validation
-    @Query("SELECT c FROM Consultation c WHERE c.validationUab = false AND c.statut = 'COMPLET' ORDER BY c.dateConsultation DESC")
+
+    // ==================== DOSSIERS EN ATTENTE DE VALIDATION UAB ====================
+
+    /**
+     * ✅ Récupérer les consultations en attente de validation UAB
+     * Utilise validationUabBool = false ou null
+     */
+    @Query("SELECT c FROM Consultation c " +
+            "WHERE (c.validationUabBool IS NULL OR c.validationUabBool = false) " +
+            "AND c.statut = 'PAYEE_CAISSE' " +
+            "ORDER BY c.dateConsultation DESC")
     List<Consultation> findDossiersEnAttenteValidation();
 
-    // Dossiers hors délai
-    @Query("SELECT c FROM Consultation c WHERE c.dateTransmission IS NOT NULL AND c.dateTransmission < :limite")
-    List<Consultation> findDossiersHorsDelai(@Param("limite") LocalDate limite);
+    /**
+     * ✅ Récupérer les consultations validées par UAB
+     */
+    @Query("SELECT c FROM Consultation c " +
+            "WHERE c.validationUabBool = true " +
+            "AND c.statut = 'VALIDEE_UAB' " +
+            "ORDER BY c.validationUabDate DESC")
+    List<Consultation> findDossiersValides();
 
-    // Comptage par période
-    @Query("SELECT COUNT(c) FROM Consultation c WHERE c.dateConsultation BETWEEN :debut AND :fin")
-    Long countByDateConsultationBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin);
+    /**
+     * ✅ Récupérer les consultations rejetées par UAB
+     */
+    @Query("SELECT c FROM Consultation c " +
+            "WHERE c.validationUabBool = false " +
+            "AND c.statut = 'REJETEE_UAB' " +
+            "ORDER BY c.dateConsultation DESC")
+    List<Consultation> findDossiersRejetes();
 
-    // Somme des montants pris en charge par période
-    @Query("SELECT SUM(c.montantPrisEnCharge) FROM Consultation c WHERE c.dateConsultation BETWEEN :debut AND :fin")
-    Double sumMontantPrisEnChargeByDateConsultationBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin);
+    /**
+     * ✅ Récupérer les consultations par statut de validation
+     */
+    @Query("SELECT c FROM Consultation c " +
+            "WHERE (:validationUabBool IS NULL OR c.validationUabBool = :validationUabBool) " +
+            "ORDER BY c.dateConsultation DESC")
+    List<Consultation> findByValidationUabBool(@Param("validationUabBool") Boolean validationUabBool);
 }

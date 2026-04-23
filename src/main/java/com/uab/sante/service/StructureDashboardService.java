@@ -1,17 +1,17 @@
 package com.uab.sante.service;
 
-import com.uab.sante.dto.StructureDashboardDTO;
-import com.uab.sante.entities.Consultation;
-import com.uab.sante.entities.PrescriptionExamen;
-import com.uab.sante.entities.PrescriptionMedicament;
-import com.uab.sante.entities.Structure;
+import com.uab.sante.entities.*;
 import com.uab.sante.repository.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,241 +23,263 @@ public class StructureDashboardService {
     private final PrescriptionExamenRepository prescriptionExamenRepository;
     private final StructureRepository structureRepository;
 
-    /**
-     * Récupérer les statistiques pour une structure
-     */
-    public StructureDashboardDTO getDashboardByStructure(Long structureId) {
-        Structure structure = structureRepository.findById(structureId)
-                .orElseThrow(() -> new RuntimeException("Structure non trouvée"));
+    // DTO pour les prescriptions médicaments
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PrescriptionMedicamentDTO {
+        private Long id;
+        private String medicamentNom;
+        private String medicamentDosage;
+        private String medicamentForme;
+        private Integer quantitePrescitee;
+        private Integer quantiteDelivree;
+        private String instructions;
+        private Boolean delivre;
+        private Double prixTotal;
+        private Double montantPrisEnCharge;
+        private String codeInte;
+        private String codeRisq;
+    }
 
-        // Récupérer toutes les consultations de cette structure
+    // DTO pour les prescriptions examens
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PrescriptionExamenDTO {
+        private Long id;
+        private String examenNom;
+        private String codeActe;
+        private String instructions;
+        private Boolean realise;
+        private Boolean paye;
+        private Double prixTotal;
+        private Double montantPrisEnCharge;
+        private LocalDate datePaiement;
+        private String codeInte;
+        private String codeRisq;
+    }
+
+    // DTO pour les dossiers unifiés
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DossierUnifieDTO {
+        private Long id;
+        private String numero;
+        private String type;
+        private String patientNom;
+        private String patientPrenom;
+        private String patientPolice;
+        private Double montantTotal;
+        private Double montantPrisEnCharge;
+        private Double montantTicketModerateur;
+        private String statut;
+        private Boolean validationUab;
+        private LocalDate dateCreation;
+        private String codeInte;
+        private String codeRisq;
+        private String motifRejet;
+        private String structureNom;
+        private Long structureId;
+        private String origine;
+        private String medecinNom;
+        private String natureMaladie;
+        private String diagnostic;
+        private String actesMedicaux;
+        private List<PrescriptionMedicamentDTO> prescriptionsMedicaments;
+        private List<PrescriptionExamenDTO> prescriptionsExamens;
+        private String examenNom;
+        private String examenCode;
+        private LocalDate datePaiement;
+        private String instructions;
+        private Boolean realise;
+        private Boolean paye;
+        private String medicamentNom;
+        private String medicamentDosage;
+        private String medicamentForme;
+        private Integer quantite;
+        private Integer quantiteDelivree;
+        private Boolean delivre;
+    }
+
+    public List<DossierUnifieDTO> getAllDossiersByStructure(Long structureId) {
+        List<DossierUnifieDTO> allDossiers = new ArrayList<>();
+
+        // 1. CONSULTATIONS
         List<Consultation> consultations = consultationRepository.findByStructureId(structureId);
+        System.out.println("=== CHARGEMENT DES CONSULTATIONS ===");
+        System.out.println("Nombre de consultations: " + consultations.size());
 
-        // Statistiques générales
-        StructureDashboardDTO.StatsGeneralesDTO statsGenerales = getStatsGenerales(consultations);
+        for (Consultation c : consultations) {
+            System.out.println("Traitement consultation ID: " + c.getId());
 
-        // Évolution mensuelle (derniers 12 mois)
-        List<StructureDashboardDTO.EvolutionMensuelleDTO> evolutionMensuelle = getEvolutionMensuelle(consultations);
-
-        // Détail par année et mois
-        Map<Integer, StructureDashboardDTO.AnneeDetailDTO> detailParAnnee = getDetailParAnnee(consultations);
-
-        // Dernières activités
-        List<StructureDashboardDTO.ActiviteRecenteDTO> dernieresActivites = getDernieresActivites(consultations, structureId);
-
-        return StructureDashboardDTO.builder()
-                .structureId(structure.getId())
-                .structureNom(structure.getNom())
-                .structureType(structure.getType().name())
-                .statsGenerales(statsGenerales)
-                .evolutionMensuelle(evolutionMensuelle)
-                .detailParAnnee(detailParAnnee)
-                .dernieresActivites(dernieresActivites)
-                .build();
-    }
-
-    /**
-     * Statistiques générales
-     */
-    private StructureDashboardDTO.StatsGeneralesDTO getStatsGenerales(List<Consultation> consultations) {
-        long total = consultations.size();
-        long enAttente = consultations.stream()
-                .filter(c -> "COMPLET".equals(c.getStatut()) && !c.getValidationUab())
-                .count();
-        long valides = consultations.stream()
-                .filter(c -> c.getValidationUab() != null && c.getValidationUab())
-                .count();
-        long rejetes = consultations.stream()
-                .filter(c -> "REJETEE".equals(c.getStatut()))
-                .count();
-
-        double montantTotal = consultations.stream()
-                .mapToDouble(c -> c.getMontantPrisEnCharge() != null ? c.getMontantPrisEnCharge() : 0)
-                .sum();
-        double montantRembourse = consultations.stream()
-                .filter(c -> c.getRemboursementEffectue() != null && c.getRemboursementEffectue())
-                .mapToDouble(c -> c.getMontantPrisEnCharge() != null ? c.getMontantPrisEnCharge() : 0)
-                .sum();
-
-        long totalPatients = consultations.stream()
-                .map(c -> c.getAssure().getId())
-                .distinct()
-                .count();
-
-        double montantMoyen = total > 0 ? montantTotal / total : 0;
-
-        return StructureDashboardDTO.StatsGeneralesDTO.builder()
-                .totalDossiers(total)
-                .enAttente(enAttente)
-                .valides(valides)
-                .rejetes(rejetes)
-                .montantTotalPrisEnCharge(montantTotal)
-                .montantTotalRembourse(montantRembourse)
-                .totalPatients(totalPatients)
-                .montantMoyenParDossier(montantMoyen)
-                .build();
-    }
-
-    /**
-     * Évolution mensuelle (derniers 12 mois)
-     */
-    private List<StructureDashboardDTO.EvolutionMensuelleDTO> getEvolutionMensuelle(List<Consultation> consultations) {
-        LocalDate now = LocalDate.now();
-        List<StructureDashboardDTO.EvolutionMensuelleDTO> result = new ArrayList<>();
-
-        for (int i = 11; i >= 0; i--) {
-            LocalDate date = now.minusMonths(i);
-            int annee = date.getYear();
-            int mois = date.getMonthValue();
-
-            List<Consultation> consultationsMois = consultations.stream()
-                    .filter(c -> c.getDateConsultation().getYear() == annee &&
-                            c.getDateConsultation().getMonthValue() == mois)
-                    .collect(Collectors.toList());
-
-            long total = consultationsMois.size();
-            double montant = consultationsMois.stream()
-                    .mapToDouble(c -> c.getMontantPrisEnCharge() != null ? c.getMontantPrisEnCharge() : 0)
-                    .sum();
-
-            result.add(StructureDashboardDTO.EvolutionMensuelleDTO.builder()
-                    .mois(date.format(DateTimeFormatter.ofPattern("MMM")))
-                    .annee(annee)
-                    .nombreDossiers(total)
-                    .montantTotal(montant)
-                    .build());
-        }
-
-        return result;
-    }
-
-    /**
-     * Détail par année et mois
-     */
-    private Map<Integer, StructureDashboardDTO.AnneeDetailDTO> getDetailParAnnee(List<Consultation> consultations) {
-        Map<Integer, List<Consultation>> parAnnee = consultations.stream()
-                .collect(Collectors.groupingBy(c -> c.getDateConsultation().getYear()));
-
-        Map<Integer, StructureDashboardDTO.AnneeDetailDTO> result = new LinkedHashMap<>();
-        String[] nomsMois = {"Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"};
-
-        for (Map.Entry<Integer, List<Consultation>> entry : parAnnee.entrySet().stream()
-                .sorted(Map.Entry.<Integer, List<Consultation>>comparingByKey().reversed())
-                .collect(Collectors.toList())) {
-
-            Integer annee = entry.getKey();
-            List<Consultation> consultationsAnnee = entry.getValue();
-
-            Map<Integer, StructureDashboardDTO.MoisDetailDTO> moisMap = new LinkedHashMap<>();
-
-            for (int i = 1; i <= 12; i++) {
-                int mois = i;
-                List<Consultation> consultationsMois = consultationsAnnee.stream()
-                        .filter(c -> c.getDateConsultation().getMonthValue() == mois)
-                        .collect(Collectors.toList());
-
-                long total = consultationsMois.size();
-                double montant = consultationsMois.stream()
-                        .mapToDouble(c -> c.getMontantPrisEnCharge() != null ? c.getMontantPrisEnCharge() : 0)
-                        .sum();
-
-                List<StructureDashboardDTO.ConsultationSimpleDTO> consultationsSimple = consultationsMois.stream()
-                        .map(c -> StructureDashboardDTO.ConsultationSimpleDTO.builder()
-                                .id(c.getId())
-                                .numeroFeuille(c.getNumeroFeuille())
-                                .patientNom(c.getAssure().getNom())
-                                .patientPrenom(c.getAssure().getPrenom())
-                                .numeroPolice(c.getAssure().getNumeroPolice())
-                                .dateConsultation(c.getDateConsultation())
-                                .montant(c.getMontantPrisEnCharge())
-                                .statut(c.getStatut())
-                                .build())
-                        .collect(Collectors.toList());
-
-                moisMap.put(mois, StructureDashboardDTO.MoisDetailDTO.builder()
-                        .mois(mois)
-                        .nomMois(nomsMois[mois - 1])
-                        .totalDossiers(total)
-                        .montantTotal(montant)
-                        .consultations(consultationsSimple)
-                        .build());
+            // Récupérer les prescriptions médicaments
+            List<PrescriptionMedicamentDTO> medocsDTO = new ArrayList<>();
+            if (c.getPrescriptionsMedicaments() != null && !c.getPrescriptionsMedicaments().isEmpty()) {
+                System.out.println("  - Nombre de médicaments: " + c.getPrescriptionsMedicaments().size());
+                for (PrescriptionMedicament pm : c.getPrescriptionsMedicaments()) {
+                    PrescriptionMedicamentDTO medDTO = PrescriptionMedicamentDTO.builder()
+                            .id(pm.getId())
+                            .medicamentNom(pm.getMedicamentNom())
+                            .medicamentDosage(pm.getMedicamentDosage())
+                            .medicamentForme(pm.getMedicamentForme())
+                            .quantitePrescitee(pm.getQuantitePrescitee())
+                            .quantiteDelivree(pm.getQuantiteDelivree())
+                            .instructions(pm.getInstructions())
+                            .delivre(pm.getDelivre())
+                            .prixTotal(pm.getPrixTotal())
+                            .montantPrisEnCharge(pm.getMontantPrisEnCharge())
+                            .codeInte(c.getCodeInte())
+                            .codeRisq(c.getCodeRisq())
+                            .build();
+                    medocsDTO.add(medDTO);
+                    System.out.println("    - Médicament: " + pm.getMedicamentNom());
+                }
+            } else {
+                System.out.println("  - Aucune prescription médicament trouvée");
             }
 
-            long totalAnnee = consultationsAnnee.size();
-            double montantAnnee = consultationsAnnee.stream()
-                    .mapToDouble(c -> c.getMontantPrisEnCharge() != null ? c.getMontantPrisEnCharge() : 0)
-                    .sum();
+            // Récupérer les prescriptions examens
+            List<PrescriptionExamenDTO> examensDTO = new ArrayList<>();
+            if (c.getPrescriptionsExamens() != null && !c.getPrescriptionsExamens().isEmpty()) {
+                System.out.println("  - Nombre d'examens: " + c.getPrescriptionsExamens().size());
+                for (PrescriptionExamen pe : c.getPrescriptionsExamens()) {
+                    PrescriptionExamenDTO examDTO = PrescriptionExamenDTO.builder()
+                            .id(pe.getId())
+                            .examenNom(pe.getExamenNom())
+                            .codeActe(pe.getCodeActe())
+                            .instructions(pe.getInstructions())
+                            .realise(pe.getRealise())
+                            .paye(pe.getPaye())
+                            .prixTotal(pe.getPrixTotal())
+                            .montantPrisEnCharge(pe.getMontantPrisEnCharge())
+                            .datePaiement(pe.getDatePaiement())
+                            .codeInte(c.getCodeInte())
+                            .codeRisq(c.getCodeRisq())
+                            .build();
+                    examensDTO.add(examDTO);
+                    System.out.println("    - Examen: " + pe.getExamenNom());
+                }
+            } else {
+                System.out.println("  - Aucune prescription examen trouvée");
+            }
 
-            result.put(annee, StructureDashboardDTO.AnneeDetailDTO.builder()
-                    .annee(annee)
-                    .totalDossiers(totalAnnee)
-                    .montantTotal(montantAnnee)
-                    .mois(moisMap)
-                    .build());
+            DossierUnifieDTO d = DossierUnifieDTO.builder()
+                    .id(c.getId())
+                    .numero(c.getNumeroFeuille())
+                    .type("CONSULTATION")
+                    .patientNom(c.getAssure().getNom())
+                    .patientPrenom(c.getAssure().getPrenom())
+                    .patientPolice(c.getAssure().getNumeroPolice())
+                    .montantTotal(c.getMontantTotalHospitalier())
+                    .montantPrisEnCharge(c.getMontantPrisEnCharge())
+                    .montantTicketModerateur(c.getMontantTicketModerateur())
+                    .statut(c.getStatut())
+                    .validationUab(c.getValidationUabBool())
+                    .dateCreation(c.getDateConsultation())
+                    .codeInte(c.getCodeInte())
+                    .codeRisq(c.getCodeRisq())
+                    .motifRejet(c.getMotifRejet())
+                    .structureNom(c.getStructure() != null ? c.getStructure().getNom() : null)
+                    .structureId(c.getStructure() != null ? c.getStructure().getId() : null)
+                    .origine("HOPITAL")
+                    .medecinNom(c.getMedecin() != null ? c.getMedecin().getPrenom() + " " + c.getMedecin().getNom() : null)
+                    .natureMaladie(c.getNatureMaladie())
+                    .diagnostic(c.getDiagnostic())
+                    .actesMedicaux(c.getActesMedicaux())
+                    .prescriptionsMedicaments(medocsDTO)
+                    .prescriptionsExamens(examensDTO)
+                    .build();
+            allDossiers.add(d);
         }
 
-        return result;
+        // 2. PRESCRIPTIONS MÉDICAMENTS (PHARMACIE)
+        List<PrescriptionMedicament> medicaments = prescriptionMedicamentRepository.findByPharmacieId(structureId);
+        System.out.println("=== PRESCRIPTIONS MÉDICAMENTS ===");
+        System.out.println("Nombre: " + medicaments.size());
+
+        for (PrescriptionMedicament pm : medicaments) {
+            DossierUnifieDTO d = DossierUnifieDTO.builder()
+                    .id(pm.getId())
+                    .numero(pm.getNumeroOrdonnance())
+                    .type("PRESCRIPTION_MEDICAMENT")
+                    .patientNom(pm.getConsultation().getAssure().getNom())
+                    .patientPrenom(pm.getConsultation().getAssure().getPrenom())
+                    .patientPolice(pm.getConsultation().getAssure().getNumeroPolice())
+                    .montantTotal(pm.getPrixTotal())
+                    .montantPrisEnCharge(pm.getMontantPrisEnCharge())
+                    .montantTicketModerateur(pm.getMontantTicketModerateur())
+                    .statut(pm.getDelivre() ? "DELIVRE" : "EN_ATTENTE")
+                    .validationUab(pm.getValidationUabBool())
+                    .dateCreation(pm.getDatePrescription())
+                    .codeInte(pm.getConsultation().getCodeInte())
+                    .codeRisq(pm.getConsultation().getCodeRisq())
+                    .motifRejet(pm.getMotifRejet())
+                    .structureNom(pm.getPharmacie() != null ? pm.getPharmacie().getNom() : null)
+                    .structureId(pm.getPharmacie() != null ? pm.getPharmacie().getId() : null)
+                    .origine("PHARMACIE")
+                    .medicamentNom(pm.getMedicamentNom())
+                    .medicamentDosage(pm.getMedicamentDosage())
+                    .medicamentForme(pm.getMedicamentForme())
+                    .quantite(pm.getQuantitePrescitee())
+                    .quantiteDelivree(pm.getQuantiteDelivree())
+                    .delivre(pm.getDelivre())
+                    .instructions(pm.getInstructions())
+                    .build();
+            allDossiers.add(d);
+        }
+
+        // 3. PRESCRIPTIONS EXAMENS (LABORATOIRE)
+        List<PrescriptionExamen> examens = prescriptionExamenRepository.findByLaboratoireId(structureId);
+        System.out.println("=== PRESCRIPTIONS EXAMENS ===");
+        System.out.println("Nombre: " + examens.size());
+
+        for (PrescriptionExamen pe : examens) {
+            DossierUnifieDTO d = DossierUnifieDTO.builder()
+                    .id(pe.getId())
+                    .numero(pe.getNumeroBulletin())
+                    .type("PRESCRIPTION_EXAMEN")
+                    .patientNom(pe.getConsultation().getAssure().getNom())
+                    .patientPrenom(pe.getConsultation().getAssure().getPrenom())
+                    .patientPolice(pe.getConsultation().getAssure().getNumeroPolice())
+                    .montantTotal(pe.getPrixTotal())
+                    .montantPrisEnCharge(pe.getMontantPrisEnCharge())
+                    .montantTicketModerateur(pe.getMontantTicketModerateur())
+                    .statut(pe.getPaye() ? "PAYE" : "EN_ATTENTE")
+                    .validationUab(pe.getValidationUabBool())
+                    .dateCreation(pe.getDatePrescription())
+                    .codeInte(pe.getConsultation().getCodeInte())
+                    .codeRisq(pe.getConsultation().getCodeRisq())
+                    .motifRejet(pe.getMotifRejet())
+                    .structureNom(pe.getLaboratoire() != null ? pe.getLaboratoire().getNom() : null)
+                    .structureId(pe.getLaboratoire() != null ? pe.getLaboratoire().getId() : null)
+                    .origine("LABORATOIRE")
+                    .examenNom(pe.getExamenNom())
+                    .examenCode(pe.getCodeActe())
+                    .datePaiement(pe.getDatePaiement())
+                    .instructions(pe.getInstructions())
+                    .realise(pe.getRealise())
+                    .paye(pe.getPaye())
+                    .build();
+            allDossiers.add(d);
+        }
+
+        allDossiers.sort((a, b) -> b.getDateCreation().compareTo(a.getDateCreation()));
+
+        System.out.println("=== TOTAL DOSSIERS: " + allDossiers.size());
+
+        return allDossiers;
     }
 
-    /**
-     * Dernières activités
-     */
-    private List<StructureDashboardDTO.ActiviteRecenteDTO> getDernieresActivites(List<Consultation> consultations, Long structureId) {
-        List<StructureDashboardDTO.ActiviteRecenteDTO> activites = new ArrayList<>();
-
-        // Ajouter les consultations
-        consultations.stream()
-                .sorted((a, b) -> b.getDateConsultation().compareTo(a.getDateConsultation()))
-                .limit(10)
-                .forEach(c -> {
-                    activites.add(StructureDashboardDTO.ActiviteRecenteDTO.builder()
-                            .id(c.getId())
-                            .type("CONSULTATION")
-                            .description("Consultation de " + c.getAssure().getPrenom() + " " + c.getAssure().getNom())
-                            .montant(c.getMontantTotalHospitalier())
-                            .date(c.getDateConsultation())
-                            .statut(c.getStatut())
-                            .build());
-                });
-
-        // Pour les pharmacies, ajouter les délivrances
-        List<PrescriptionMedicament> prescriptions = prescriptionMedicamentRepository
-                .findByPharmacieIdAndDelivreTrue(structureId);
-        prescriptions.stream()
-                .sorted((a, b) -> b.getDateDelivrance().compareTo(a.getDateDelivrance()))
-                .limit(10)
-                .forEach(p -> {
-                    activites.add(StructureDashboardDTO.ActiviteRecenteDTO.builder()
-                            .id(p.getId())
-                            .type("DELIVRANCE")
-                            .description("Délivrance de " + p.getMedicamentNom())
-                            .montant(p.getPrixTotal())
-                            .date(p.getDateDelivrance())
-                            .statut(p.getDelivre() ? "DÉLIVRÉ" : "EN ATTENTE")
-                            .build());
-                });
-
-        // Pour les laboratoires, ajouter les réalisations
-        List<PrescriptionExamen> examens = prescriptionExamenRepository
-                .findByLaboratoireIdAndRealiseTrue(structureId);
-        examens.stream()
-                .sorted((a, b) -> b.getDateRealisation().compareTo(a.getDateRealisation()))
-                .limit(10)
-                .forEach(e -> {
-                    activites.add(StructureDashboardDTO.ActiviteRecenteDTO.builder()
-                            .id(e.getId())
-                            .type("EXAMEN")
-                            .description("Réalisation de " + e.getExamenNom())
-                            .montant(e.getPrixTotal())
-                            .date(e.getDateRealisation())
-                            .statut(e.getRealise() ? "RÉALISÉ" : "EN ATTENTE")
-                            .build());
-                });
-
-        // Trier par date décroissante
-        activites.sort((a, b) -> b.getDate().compareTo(a.getDate()));
-
-        return activites.stream().limit(20).collect(Collectors.toList());
+    public DossierUnifieDTO getDossierById(Long structureId, Long dossierId) {
+        List<DossierUnifieDTO> allDossiers = getAllDossiersByStructure(structureId);
+        return allDossiers.stream()
+                .filter(d -> d.getId().equals(dossierId))
+                .findFirst()
+                .orElse(null);
     }
 }

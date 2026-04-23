@@ -82,8 +82,11 @@ public class Consultation {
     @Column(length = 30)
     private String statut = "PAYEE_CAISSE";
 
-    @Column(name = "validation_uab")
-    private Boolean validationUab = false;
+    @Column(name = "validation_uab_bool")
+    private Boolean validationUabBool = true;
+
+    @Column(name = "paye")
+    private Boolean paye = false;
 
     @Column(name = "validation_uab_date")
     private LocalDateTime validationUabDate;
@@ -109,6 +112,9 @@ public class Consultation {
 
     @Column(name = "montant_surplus")
     private Double montantSurplus;
+
+    @Column(name = "motif_rejet", columnDefinition = "TEXT")
+    private String motifRejet;  // ✅ NOUVEAU - Pour stocker le motif de rejet
 
     @Column(name = "numero_police")
     private String numeroPolice;

@@ -78,6 +78,13 @@ public class StructureDashboardDTO {
         private LocalDate dateConsultation;
         private Double montant;
         private String statut;
+        private Boolean validationUab;
+        private String structureNom;
+        private Long structureId;
+        private String codeInte;
+        private String codeRisq;
+        private String motifRejet;
+        private String type;  // ✅ AJOUTER CE CHAMP
     }
 
     @Data
