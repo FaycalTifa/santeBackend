@@ -163,29 +163,41 @@ public class LaboratoireService {
 
     // service/LaboratoireService.java - Ajouter cette méthode
 
-    // service/LaboratoireService.java
+// LaboratoireService.java - Modifier cette méthode
+
     /**
      * Rechercher des examens par CODEINTE, police, code risque et codeMemb (optionnel)
+     * ✅ UNIQUEMENT les examens NON PAYÉS (paye = false)
      */
     public List<PrescriptionExamen> rechercherParCriteres(String numPolice, String codeInte, String codeRisq, String codeMemb) {
-        System.out.println("=== RECHERCHE EXAMENS PAR CRITÈRES ===");
+        System.out.println("=== RECHERCHE EXAMENS PAR CRITÈRES (UNIQUEMENT NON PAYÉS) ===");
         System.out.println("numPolice: " + numPolice);
         System.out.println("codeInte: " + codeInte);
         System.out.println("codeRisq: " + codeRisq);
         System.out.println("codeMemb: " + codeMemb);
 
-        // ✅ Appel avec codeMemb
+        // ✅ Récupérer tous les examens correspondant aux critères
         List<PrescriptionExamen> examens = prescriptionExamenRepository.findByCriteres(numPolice, codeInte, codeRisq, codeMemb);
 
-        // Afficher les statuts pour debug
-        for (PrescriptionExamen e : examens) {
-            System.out.println("Examen ID: " + e.getId() +
+        // ✅ FILTRAGE : Garder uniquement les examens NON PAYÉS (paye = false)
+        List<PrescriptionExamen> examensNonPayes = examens.stream()
+                .filter(e -> e.getPaye() == null || !e.getPaye())  // Garder seulement les non payés
+                .collect(Collectors.toList());
+
+        System.out.println("=== RÉSULTAT DU FILTRAGE ===");
+        System.out.println("Total examens trouvés: " + examens.size());
+        System.out.println("Examens NON PAYÉS (affichés): " + examensNonPayes.size());
+        System.out.println("Examens PAYÉS (exclus): " + (examens.size() - examensNonPayes.size()));
+
+        for (PrescriptionExamen e : examensNonPayes) {
+            System.out.println("  ✅ Examen ID: " + e.getId() +
                     ", Nom: " + e.getExamenNom() +
                     ", validationUab: " + e.getValidationUab() +
-                    ", paye: " + e.getPaye());
+                    ", paye: " + e.getPaye() +
+                    ", realise: " + e.getRealise());
         }
 
-        return examens;
+        return examensNonPayes;
     }
 
 
@@ -193,11 +205,29 @@ public class LaboratoireService {
 
     /**
      * Récupérer les examens en attente de paiement pour un laboratoire
+     * ✅ UNIQUEMENT les examens qui ne sont PAS encore payés
+     * ✅ Les examens payés sont EXCLUS de cette liste
      */
     public List<PrescriptionExamen> getExamensEnAttentePaiement(Long laboratoireId) {
-        // ✅ Filtrer par validationUab = 'OUI' ET paye = false ET realise = false
-        return prescriptionExamenRepository.findByLaboratoireIdAndValidationUabAndPayeFalseAndRealiseFalse(laboratoireId, "OUI");
+        System.out.println("=== RECHERCHE EXAMENS EN ATTENTE DE PAIEMENT ===");
+        System.out.println("Laboratoire ID: " + laboratoireId);
+
+        // ✅ Uniquement les examens non payés (paye = false)
+        List<PrescriptionExamen> examens = prescriptionExamenRepository
+                .findByLaboratoireIdAndPayeFalse(laboratoireId);
+
+        System.out.println("Nombre d'examens en attente de paiement: " + examens.size());
+        for (PrescriptionExamen e : examens) {
+            System.out.println("  - ID: " + e.getId() +
+                    ", Examen: " + e.getExamenNom() +
+                    ", Payé: " + e.getPaye() +
+                    ", Réalisé: " + e.getRealise());
+        }
+System.out.println("++++++++++++++examens++++++++++++++++++++++: " + examens );
+        return examens;
     }
+
+
     /**
      * Récupérer les examens payés en attente de réalisation
      */

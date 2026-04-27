@@ -30,15 +30,34 @@ public class PharmacieService {
      * ✅ NOUVELLE MÉTHODE : Rechercher des prescriptions par CODEINTE, police et code risque
      */
     public List<PrescriptionMedicament> rechercherParCriteres(String numPolice, String codeInte, String codeRisq, String codeMemb) {
-        System.out.println("=== RECHERCHE PRESCRIPTIONS PAR CRITÈRES ===");
+        System.out.println("=== RECHERCHE PRESCRIPTIONS PAR CRITÈRES (UNIQUEMENT NON DÉLIVRÉES) ===");
         System.out.println("numPolice: " + numPolice);
         System.out.println("codeInte: " + codeInte);
         System.out.println("codeRisq: " + codeRisq);
         System.out.println("codeMemb: " + codeMemb);
 
-        return prescriptionMedicamentRepository.findByCriteres(numPolice, codeInte, codeRisq, codeMemb);
-    }
+        // Récupérer toutes les prescriptions correspondant aux critères
+        List<PrescriptionMedicament> prescriptions = prescriptionMedicamentRepository.findByCriteres(numPolice, codeInte, codeRisq, codeMemb);
 
+        // ✅ FILTRAGE : Garder uniquement les prescriptions NON DÉLIVRÉES (delivre = false)
+        List<PrescriptionMedicament> prescriptionsNonDelivrees = prescriptions.stream()
+                .filter(p -> p.getDelivre() == null || !p.getDelivre())  // Uniquement les non délivrées
+                .collect(Collectors.toList());
+
+        System.out.println("=== RÉSULTAT DU FILTRAGE ===");
+        System.out.println("Total prescriptions trouvées: " + prescriptions.size());
+        System.out.println("Prescriptions NON DÉLIVRÉES (affichées): " + prescriptionsNonDelivrees.size());
+        System.out.println("Prescriptions DÉLIVRÉES (exclues): " + (prescriptions.size() - prescriptionsNonDelivrees.size()));
+
+        for (PrescriptionMedicament p : prescriptionsNonDelivrees) {
+            System.out.println("  ✅ Prescription ID: " + p.getId() +
+                    ", Médicament: " + p.getMedicamentNom() +
+                    ", Délivrée: " + p.getDelivre() +
+                    ", Quantité: " + p.getQuantitePrescitee());
+        }
+
+        return prescriptionsNonDelivrees;
+    }
     /**
      * Récupérer les prescriptions par numéro de police
      */

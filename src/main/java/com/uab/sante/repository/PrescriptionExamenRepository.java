@@ -77,6 +77,15 @@ public interface PrescriptionExamenRepository extends JpaRepository<Prescription
             @Param("laboratoireId") Long laboratoireId,
             @Param("validationUab") String validationUab);
 
+    /**
+     * Récupérer les examens en attente de paiement pour un laboratoire
+     * ✅ UNIQUEMENT les examens NON PAYÉS (paye = false)
+     * ✅ Exclure les examens déjà payés
+     */
+    @Query("SELECT pe FROM PrescriptionExamen pe " +
+            "WHERE pe.laboratoire.id = :laboratoireId " +
+            "AND pe.paye = false")
+    List<PrescriptionExamen> findByLaboratoireIdAndPayeFalse(@Param("laboratoireId") Long laboratoireId);
     @Query("SELECT pe FROM PrescriptionExamen pe " +
             "WHERE pe.consultation.medecin.id = :medecinId " +
             "AND pe.validationUab = :validationUab " +
