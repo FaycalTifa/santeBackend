@@ -105,6 +105,7 @@ public class StructureDashboardService {
         private String medicamentNom;
         private String medicamentDosage;
         private String medicamentForme;
+        private String typeConsultation;
         private Integer quantite;
         private Integer quantiteDelivree;
         private Boolean delivre;
@@ -187,6 +188,7 @@ public class StructureDashboardService {
                     .dateCreation(c.getDateConsultation())
                     .codeInte(c.getCodeInte())
                     .codeRisq(c.getCodeRisq())
+                    .natureMaladie(c.getNatureMaladie())
                     .motifRejet(c.getMotifRejet())
                     .structureNom(c.getStructure() != null ? c.getStructure().getNom() : null)
                     .structureId(c.getStructure() != null ? c.getStructure().getId() : null)
@@ -195,6 +197,7 @@ public class StructureDashboardService {
                     .natureMaladie(c.getNatureMaladie())
                     .diagnostic(c.getDiagnostic())
                     .actesMedicaux(c.getActesMedicaux())
+                    .typeConsultation(c.getTypeConsultation())
                     .prescriptionsMedicaments(medocsDTO)
                     .prescriptionsExamens(examensDTO)
                     .build();
@@ -367,7 +370,9 @@ public class StructureDashboardService {
                 .medecinNom(medecinNom)
                 .natureMaladie(c.getNatureMaladie())
                 .diagnostic(c.getDiagnostic())
+                .natureMaladie(c.getNatureMaladie())
                 .actesMedicaux(c.getActesMedicaux())
+                .typeConsultation(c.getTypeConsultation())
                 .prescriptionsMedicaments(medocsDTO)
                 .prescriptionsExamens(examensDTO)
                 .build();
