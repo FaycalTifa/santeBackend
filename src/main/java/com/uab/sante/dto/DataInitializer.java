@@ -66,7 +66,9 @@ public class DataInitializer implements CommandLineRunner {
                     Role.builder().code("PHARMACIEN").nom("Pharmacien").description("Délivre les médicaments").actif(true).build(),
                     Role.builder().code("CAISSIER_LABORATOIRE").nom("Caissier Laboratoire").description("Gère les paiements au laboratoire").actif(true).build(),
                     Role.builder().code("BIOLOGISTE").nom("Biologiste").description("Réalise les examens").actif(true).build(),
-                    Role.builder().code("UAB_ADMIN").nom("Admin UAB").description("Administrateur de la plateforme").actif(true).build()
+                    Role.builder().code("UAB_ADMIN").nom("Admin UAB").description("Administrateur de la plateforme").actif(true).build(),
+                    Role.builder().code("UAB_MEDECIN").nom("medecin UAB").description("Validation des examens").actif(true).build(),
+                    Role.builder().code("UAB_OPERATEUR").nom("Operateur saisie").description("Operateur de saisie").actif(true).build()
             };
 
             for (Role role : roles) {
