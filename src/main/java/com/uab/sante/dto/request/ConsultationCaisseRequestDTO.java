@@ -26,6 +26,9 @@ public class ConsultationCaisseRequestDTO {
     // ✅ NOUVEAU: Code membre (pour différencier les bénéficiaires)
     private String codeMemb;  // NULL pour l'assuré principal
 
+    @NotBlank(message = "Le type de consultation est requis")
+    private String typeConsultation; // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR'  'DENTISTE'
+
     @NotNull
     private LocalDate dateConsultation;
 
@@ -42,7 +45,6 @@ public class ConsultationCaisseRequestDTO {
     @NotBlank
     private String codeRisq;  // ← AJOUTER
 
-    private String typeConsultation; // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR'
 
     // Nouveaux champs pour le plafonnement
     private String codePres;        // C01, C04, C00

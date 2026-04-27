@@ -2,6 +2,8 @@ package com.uab.sante.repository;
 
 import com.uab.sante.entities.Consultation;
 import com.uab.sante.entities.TauxCouverture;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,6 +34,8 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
 
     // Recherche par statut
     List<Consultation> findByStatutOrderByDateConsultationDesc(String statut);
+
+    Page<Consultation> findAll(Pageable pageable);
 
     // repository/ConsultationRepository.java
     List<Consultation> findByStatut(String statut);

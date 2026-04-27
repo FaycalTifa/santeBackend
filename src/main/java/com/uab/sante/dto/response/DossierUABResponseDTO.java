@@ -41,4 +41,5 @@ public class DossierUABResponseDTO {
     private Integer quantite;
     private Integer quantiteDelivree;
     private Boolean delivre;
+    private String typeConsultation;
 }

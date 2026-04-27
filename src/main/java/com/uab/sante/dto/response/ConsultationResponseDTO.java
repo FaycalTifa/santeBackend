@@ -33,6 +33,8 @@ public class ConsultationResponseDTO {
     private String actesMedicaux;
     private String medecinNom;
 
+    private String typeConsultation; // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR' 'DENTISTE'
+
     // Statut
     private String statut;
     private Boolean validationUab;

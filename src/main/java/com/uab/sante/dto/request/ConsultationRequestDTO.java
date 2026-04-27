@@ -38,4 +38,6 @@ public class ConsultationRequestDTO {
     private Long tauxId;
 
     private Boolean prescriptionsValidees;
+
+    private String typeConsultation; // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR' 'DENTISTE'
 }

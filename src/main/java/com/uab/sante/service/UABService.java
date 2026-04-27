@@ -7,6 +7,7 @@ import com.uab.sante.dto.response.DossierUABResponseDTO;
 import com.uab.sante.entities.*;
 import com.uab.sante.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -450,14 +451,16 @@ public class UABService {
 
         // ==================== 1. RECHERCHER DANS LES PRESCRIPTIONS EXAMENS ====================
         Optional<PrescriptionExamen> peOpt = prescriptionExamenRepository.findById(id);
+        System.out.println("=============================EXAM &======================================");
         if (peOpt.isPresent()) {
             PrescriptionExamen pe = peOpt.get();
             Consultation c = pe.getConsultation();
-
+            System.out.println("=============================EXAM======================================");
             System.out.println("✅ Trouvé une prescription EXAMEN avec ID: " + pe.getId());
             System.out.println("   - examenNom: " + pe.getExamenNom());
             System.out.println("   - paye: " + pe.getPaye());
             System.out.println("   - datePaiement: " + pe.getDatePaiement());
+            System.out.println("==============================EXAM=====================================");
 
             String medecinNom = null;
             if (c.getMedecin() != null) {
@@ -490,14 +493,20 @@ public class UABService {
             result.put("realise", pe.getRealise());
             result.put("paye", pe.getPaye());
 
+
             return result;
         }
 
         // ==================== 2. RECHERCHER DANS LES CONSULTATIONS ====================
         Optional<Consultation> consultationOpt = consultationRepository.findById(id);
+        System.out.println("=============================CONSUL &======================================");
         if (consultationOpt.isPresent()) {
             Consultation c = consultationOpt.get();
+            System.out.println("=============================CONSUL ======================================");
             System.out.println("✅ Trouvé une CONSULTATION avec ID: " + c.getId());
+            System.out.println("✅ Trouvé une CONSULTATION avec PRIX: " + c.getPrixConsultation());
+            System.out.println("=============================CONSUL ======================================");
+
 
             String medecinNom = null;
             if (c.getMedecin() != null) {
@@ -526,6 +535,7 @@ public class UABService {
             result.put("natureMaladie", c.getNatureMaladie());
             result.put("diagnostic", c.getDiagnostic());
             result.put("actesMedicaux", c.getActesMedicaux());
+            result.put("typeConsultation", c.getTypeConsultation());
 
             // Prescriptions médicaments
             List<Map<String, Object>> medocs = new ArrayList<>();
@@ -571,11 +581,17 @@ public class UABService {
 
         // ==================== 3. RECHERCHER DANS LES PRESCRIPTIONS MÉDICAMENTS ====================
         Optional<PrescriptionMedicament> pmOpt = prescriptionMedicamentRepository.findById(id);
+        System.out.println("=============================MEDOC &======================================");
         if (pmOpt.isPresent()) {
             PrescriptionMedicament pm = pmOpt.get();
             Consultation c = pm.getConsultation();
-
+            System.out.println("=============================MEDOC ======================================");
             System.out.println("✅ Trouvé une prescription MÉDICAMENT avec ID: " + pm.getId());
+            System.out.println("   - medicamentNom: " + pm.getMedicamentNom());
+            System.out.println("   - medicamentDosage: " + pm.getMedicamentDosage());
+            System.out.println("   - delivre: " + pm.getDelivre());
+            System.out.println("✅ Trouvé une prescription MÉDICAMENT avec ID: " + pm.getId());
+            System.out.println("=============================MEDOC ======================================");
 
             String medecinNom = null;
             if (c.getMedecin() != null) {
@@ -604,10 +620,13 @@ public class UABService {
             result.put("medicamentNom", pm.getMedicamentNom());
             result.put("medicamentDosage", pm.getMedicamentDosage());
             result.put("medicamentForme", pm.getMedicamentForme());
-            result.put("quantite", pm.getQuantitePrescitee());
+            result.put("quantite", pm.getQuantitePrescitee());        // Utilisé dans le template
+            result.put("quantitePrescitee", pm.getQuantitePrescitee()); // Backup
             result.put("quantiteDelivree", pm.getQuantiteDelivree());
             result.put("delivre", pm.getDelivre());
             result.put("instructions", pm.getInstructions());
+
+
 
             return result;
         }
@@ -636,6 +655,7 @@ public class UABService {
                 .origine("HOPITAL")
                 .codeInte(c.getCodeInte())
                 .codeRisq(c.getCodeRisq())
+                .typeConsultation(c.getTypeConsultation())
                 .medecinNom(c.getMedecin() != null ? c.getMedecin().getPrenom() + " " + c.getMedecin().getNom() : null)
                 .build();
     }
@@ -753,7 +773,269 @@ public class UABService {
     }
 
 
+// UABService.java - AJOUTER cette nouvelle méthode (ne pas modifier getAllDossiers)
 
+    public Page<DossierUABResponseDTO> getAllDossiersPaginated(String statut, String numeroPolice,
+                                                               int page, int size) {
+        System.out.println("=== UABService.getAllDossiersPaginated() ===");
+        System.out.println("Page: " + page + ", Size: " + size);
+
+        // ✅ Correction : utiliser une page non triée ou trier par dateConsultation
+        Pageable pageable = PageRequest.of(page, size, Sort.by("dateConsultation").descending());
+
+        List<DossierUABResponseDTO> dossiers = new ArrayList<>();
+
+        // Récupérer toutes les consultations (non paginées pour l'instant)
+        List<Consultation> consultations;
+        if (numeroPolice != null && !numeroPolice.isEmpty()) {
+            consultations = consultationRepository.findByAssureNumeroPoliceOrderByDateConsultationDesc(numeroPolice);
+        } else {
+            consultations = consultationRepository.findAll();
+        }
+
+        for (Consultation c : consultations) {
+            if (c.getPaye() != null && c.getPaye()) {
+                dossiers.add(convertConsultationToDossier(c));
+            }
+        }
+
+        // Prescriptions médicaments
+        List<PrescriptionMedicament> prescriptionsMedicaments;
+        if (numeroPolice != null && !numeroPolice.isEmpty()) {
+            prescriptionsMedicaments = prescriptionMedicamentRepository
+                    .findByConsultationAssureNumeroPolice(numeroPolice);
+        } else {
+            prescriptionsMedicaments = prescriptionMedicamentRepository.findAll();
+        }
+
+        for (PrescriptionMedicament pm : prescriptionsMedicaments) {
+            if (pm.getDelivre() != null && pm.getDelivre()) {
+                dossiers.add(convertPrescriptionMedicamentToDossier(pm));
+            }
+        }
+
+        // Prescriptions examens
+        List<PrescriptionExamen> prescriptionsExamens;
+        if (numeroPolice != null && !numeroPolice.isEmpty()) {
+            prescriptionsExamens = prescriptionExamenRepository
+                    .findByConsultationAssureNumeroPolice(numeroPolice);
+        } else {
+            prescriptionsExamens = prescriptionExamenRepository.findAll();
+        }
+
+        for (PrescriptionExamen pe : prescriptionsExamens) {
+            if (pe.getPaye() != null && pe.getPaye()) {
+                dossiers.add(convertPrescriptionExamenToDossier(pe));
+            }
+        }
+
+        // Filtrer par statut
+        if (statut != null && !statut.isEmpty()) {
+            dossiers = dossiers.stream()
+                    .filter(d -> statut.equals(d.getStatut()))
+                    .collect(Collectors.toList());
+        }
+
+        // Trier par date de création (du plus récent au plus ancien)
+        dossiers.sort((a, b) -> b.getDateCreation().compareTo(a.getDateCreation()));
+
+        // Appliquer la pagination manuellement
+        int start = page * size;
+        int end = Math.min(start + size, dossiers.size());
+        List<DossierUABResponseDTO> paginatedList = dossiers.subList(start, end);
+
+        long totalElements = dossiers.size();
+
+        return new PageImpl<>(paginatedList, pageable, totalElements);
+    }
+
+
+    // UABService.java - Ajouter ces trois méthodes
+
+    public Map<String, Object> getDossierConsultationDetail(Long id) {
+        System.out.println("=== RECHERCHE CONSULTATION SPÉCIFIQUE ===");
+        System.out.println("ID: " + id);
+
+        Optional<Consultation> consultationOpt = consultationRepository.findById(id);
+        if (consultationOpt.isEmpty()) {
+            System.out.println("❌ Consultation non trouvée pour l'ID: " + id);
+            return null;
+        }
+
+        Consultation c = consultationOpt.get();
+        System.out.println("✅ Consultation trouvée pour l'ID: " + c.getId());
+
+        Map<String, Object> result = new HashMap<>();
+        String medecinNom = null;
+        if (c.getMedecin() != null) {
+            medecinNom = c.getMedecin().getPrenom() + " " + c.getMedecin().getNom();
+        }
+
+        result.put("id", c.getId());
+        result.put("numero", c.getNumeroFeuille());
+        result.put("type", "CONSULTATION");
+        result.put("patientNom", c.getAssure().getNom());
+        result.put("patientPrenom", c.getAssure().getPrenom());
+        result.put("patientPolice", c.getAssure().getNumeroPolice());
+        result.put("montantTotal", c.getMontantTotalHospitalier());
+        result.put("montantPrisEnCharge", c.getMontantPrisEnCharge());
+        result.put("montantTicketModerateur", c.getMontantTicketModerateur());
+        result.put("statut", c.getStatut());
+        result.put("validationUab", c.getValidationUabBool());
+        result.put("dateCreation", c.getDateConsultation());
+        result.put("codeInte", c.getCodeInte());
+        result.put("codeRisq", c.getCodeRisq());
+        result.put("motifRejet", c.getMotifRejet());
+        result.put("structureNom", c.getStructure() != null ? c.getStructure().getNom() : null);
+        result.put("structureId", c.getStructure() != null ? c.getStructure().getId() : null);
+        result.put("origine", "HOPITAL");
+        result.put("medecinNom", medecinNom);
+        result.put("natureMaladie", c.getNatureMaladie());
+        result.put("diagnostic", c.getDiagnostic());
+        result.put("actesMedicaux", c.getActesMedicaux());
+        result.put("typeConsultation", c.getTypeConsultation());
+
+        // Prescriptions médicaments
+        List<Map<String, Object>> medocs = new ArrayList<>();
+        if (c.getPrescriptionsMedicaments() != null && !c.getPrescriptionsMedicaments().isEmpty()) {
+            for (PrescriptionMedicament pm : c.getPrescriptionsMedicaments()) {
+                Map<String, Object> medMap = new HashMap<>();
+                medMap.put("id", pm.getId());
+                medMap.put("medicamentNom", pm.getMedicamentNom());
+                medMap.put("medicamentDosage", pm.getMedicamentDosage());
+                medMap.put("medicamentForme", pm.getMedicamentForme());
+                medMap.put("quantitePrescitee", pm.getQuantitePrescitee());
+                medMap.put("quantiteDelivree", pm.getQuantiteDelivree());
+                medMap.put("instructions", pm.getInstructions());
+                medMap.put("delivre", pm.getDelivre());
+                medMap.put("prixTotal", pm.getPrixTotal());
+                medMap.put("montantPrisEnCharge", pm.getMontantPrisEnCharge());
+                medocs.add(medMap);
+            }
+        }
+        result.put("prescriptionsMedicaments", medocs);
+
+        // Prescriptions examens
+        List<Map<String, Object>> examens = new ArrayList<>();
+        if (c.getPrescriptionsExamens() != null && !c.getPrescriptionsExamens().isEmpty()) {
+            for (PrescriptionExamen pe : c.getPrescriptionsExamens()) {
+                Map<String, Object> examMap = new HashMap<>();
+                examMap.put("id", pe.getId());
+                examMap.put("examenNom", pe.getExamenNom());
+                examMap.put("codeActe", pe.getCodeActe());
+                examMap.put("instructions", pe.getInstructions());
+                examMap.put("realise", pe.getRealise());
+                examMap.put("paye", pe.getPaye());
+                examMap.put("prixTotal", pe.getPrixTotal());
+                examMap.put("montantPrisEnCharge", pe.getMontantPrisEnCharge());
+                examMap.put("datePaiement", pe.getDatePaiement());
+                examens.add(examMap);
+            }
+        }
+        result.put("prescriptionsExamens", examens);
+
+        return result;
+    }
+
+    public Map<String, Object> getDossierExamenDetail(Long id) {
+        System.out.println("=== RECHERCHE EXAMEN SPÉCIFIQUE ===");
+        System.out.println("ID: " + id);
+
+        Optional<PrescriptionExamen> peOpt = prescriptionExamenRepository.findById(id);
+        if (peOpt.isEmpty()) {
+            System.out.println("❌ Examen non trouvé pour l'ID: " + id);
+            return null;
+        }
+
+        PrescriptionExamen pe = peOpt.get();
+        Consultation c = pe.getConsultation();
+        System.out.println("✅ Examen trouvé pour l'ID: " + pe.getId());
+
+        Map<String, Object> result = new HashMap<>();
+        String medecinNom = null;
+        if (c.getMedecin() != null) {
+            medecinNom = c.getMedecin().getPrenom() + " " + c.getMedecin().getNom();
+        }
+
+        result.put("id", pe.getId());
+        result.put("numero", pe.getNumeroBulletin());
+        result.put("type", "PRESCRIPTION_EXAMEN");
+        result.put("patientNom", c.getAssure().getNom());
+        result.put("patientPrenom", c.getAssure().getPrenom());
+        result.put("patientPolice", c.getAssure().getNumeroPolice());
+        result.put("montantTotal", pe.getPrixTotal());
+        result.put("montantPrisEnCharge", pe.getMontantPrisEnCharge());
+        result.put("montantTicketModerateur", pe.getMontantTicketModerateur());
+        result.put("statut", pe.getPaye() ? "PAYE" : "EN_ATTENTE");
+        result.put("validationUab", pe.getValidationUabBool());
+        result.put("dateCreation", pe.getDatePrescription());
+        result.put("codeInte", c.getCodeInte());
+        result.put("codeRisq", c.getCodeRisq());
+        result.put("motifRejet", pe.getMotifRejet());
+        result.put("structureNom", pe.getLaboratoire() != null ? pe.getLaboratoire().getNom() : null);
+        result.put("structureId", pe.getLaboratoire() != null ? pe.getLaboratoire().getId() : null);
+        result.put("origine", "LABORATOIRE");
+        result.put("medecinNom", medecinNom);
+        result.put("examenNom", pe.getExamenNom());
+        result.put("examenCode", pe.getCodeActe());
+        result.put("datePaiement", pe.getDatePaiement());
+        result.put("instructions", pe.getInstructions());
+        result.put("realise", pe.getRealise());
+        result.put("paye", pe.getPaye());
+
+        return result;
+    }
+
+    public Map<String, Object> getDossierMedicamentDetail(Long id) {
+        System.out.println("=== RECHERCHE MÉDICAMENT SPÉCIFIQUE ===");
+        System.out.println("ID: " + id);
+
+        Optional<PrescriptionMedicament> pmOpt = prescriptionMedicamentRepository.findById(id);
+        if (pmOpt.isEmpty()) {
+            System.out.println("❌ Médicament non trouvé pour l'ID: " + id);
+            return null;
+        }
+
+        PrescriptionMedicament pm = pmOpt.get();
+        Consultation c = pm.getConsultation();
+        System.out.println("✅ Médicament trouvé pour l'ID: " + pm.getId());
+
+        Map<String, Object> result = new HashMap<>();
+        String medecinNom = null;
+        if (c.getMedecin() != null) {
+            medecinNom = c.getMedecin().getPrenom() + " " + c.getMedecin().getNom();
+        }
+
+        result.put("id", pm.getId());
+        result.put("numero", pm.getNumeroOrdonnance());
+        result.put("type", "PRESCRIPTION_MEDICAMENT");
+        result.put("patientNom", c.getAssure().getNom());
+        result.put("patientPrenom", c.getAssure().getPrenom());
+        result.put("patientPolice", c.getAssure().getNumeroPolice());
+        result.put("montantTotal", pm.getPrixTotal());
+        result.put("montantPrisEnCharge", pm.getMontantPrisEnCharge());
+        result.put("montantTicketModerateur", pm.getMontantTicketModerateur());
+        result.put("statut", pm.getDelivre() ? "DELIVRE" : "EN_ATTENTE");
+        result.put("validationUab", pm.getValidationUabBool());
+        result.put("dateCreation", pm.getDatePrescription());
+        result.put("codeInte", c.getCodeInte());
+        result.put("codeRisq", c.getCodeRisq());
+        result.put("motifRejet", pm.getMotifRejet());
+        result.put("structureNom", pm.getPharmacie() != null ? pm.getPharmacie().getNom() : null);
+        result.put("structureId", pm.getPharmacie() != null ? pm.getPharmacie().getId() : null);
+        result.put("origine", "PHARMACIE");
+        result.put("medecinNom", medecinNom);
+        result.put("medicamentNom", pm.getMedicamentNom());
+        result.put("medicamentDosage", pm.getMedicamentDosage());
+        result.put("medicamentForme", pm.getMedicamentForme());
+        result.put("quantite", pm.getQuantitePrescitee());
+        result.put("quantitePrescitee", pm.getQuantitePrescitee());
+        result.put("quantiteDelivree", pm.getQuantiteDelivree());
+        result.put("delivre", pm.getDelivre());
+        result.put("instructions", pm.getInstructions());
+
+        return result;
+    }
 
 
 }

@@ -11,6 +11,7 @@ import com.uab.sante.entities.PrescriptionMedicament;
 import com.uab.sante.service.ConsultationService;
 import com.uab.sante.service.UABService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -150,15 +151,36 @@ public class UABController {
      */
     // UABController.java
     @GetMapping("/dossier/{id}")
-    @PreAuthorize("hasRole('UAB_ADMIN')")
+  //  @PreAuthorize("hasRole('UAB_ADMIN', 'ADMIN_STRUCTURE')")
     public ResponseEntity<Map<String, Object>> getDossierDetail(
             @PathVariable Long id,
             @RequestParam(required = false) String type) {
+
         System.out.println("=== GET DOSSIER DETAIL ===");
         System.out.println("ID: " + id);
-        System.out.println("Type: " + type);
+        System.out.println("Type reçu: " + type);
 
-        Map<String, Object> dossier = uabService.getDossierDetail(id);
+        Map<String, Object> dossier;
+
+        // ✅ Utiliser le type pour chercher dans la bonne table
+        if (type != null) {
+            switch (type) {
+                case "PRESCRIPTION_MEDICAMENT":
+                    dossier = uabService.getDossierMedicamentDetail(id);
+                    break;
+                case "PRESCRIPTION_EXAMEN":
+                    dossier = uabService.getDossierExamenDetail(id);
+                    break;
+                case "CONSULTATION":
+                    dossier = uabService.getDossierConsultationDetail(id);
+                    break;
+                default:
+                    dossier = uabService.getDossierDetail(id);
+            }
+        } else {
+            dossier = uabService.getDossierDetail(id);
+        }
+
         if (dossier == null) {
             return ResponseEntity.notFound().build();
         }
@@ -190,7 +212,21 @@ public class UABController {
     }
 
 
+// UABController.java - AJOUTER ce nouvel endpoint (garder l'ancien)
 
+    @GetMapping("/dossiers/paginated")
+    public ResponseEntity<Page<DossierUABResponseDTO>> getAllDossiersPaginated(
+            @RequestParam(required = false) String statut,
+            @RequestParam(required = false) String numeroPolice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        System.out.println("=== UABController.getAllDossiersPaginated() ===");
+        System.out.println("Page: " + page + ", Size: " + size);
+
+        Page<DossierUABResponseDTO> dossiers = uabService.getAllDossiersPaginated(statut, numeroPolice, page, size);
+        return ResponseEntity.ok(dossiers);
+    }
 
 
 }

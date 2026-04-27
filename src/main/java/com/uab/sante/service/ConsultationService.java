@@ -94,6 +94,7 @@ public class ConsultationService {
                 .codeRisq(request.getCodeRisq())
                 .codeMemb(request.getCodeMemb())
                 .numeroPolice(assure.getNumeroPolice())
+                .typeConsultation(request.getTypeConsultation())
                 .build();
 
         Consultation saved = consultationRepository.save(consultation);
@@ -209,6 +210,7 @@ public class ConsultationService {
                 .medecinNom(medecinNomValue)
                 .structureNom(consultation.getStructure() != null ? consultation.getStructure().getNom() : null)
                 .prescriptionsValidees(consultation.getPrescriptionsValidees())
+                .typeConsultation(consultation.getTypeConsultation())
                 .build();
     }
 

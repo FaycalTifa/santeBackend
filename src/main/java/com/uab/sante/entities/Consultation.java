@@ -41,6 +41,9 @@ public class Consultation {
     @Column(name = "prix_actes")
     private Double prixActes;
 
+    @Column(name = "type_consultation", length = 30)
+    private String typeConsultation;  // 'GENERALISTE', 'SPECIALISTE', 'PROFESSEUR' 'DENTISTE'
+
     @Column(name = "montant_total_hospitalier", nullable = false)
     private Double montantTotalHospitalier;
 
