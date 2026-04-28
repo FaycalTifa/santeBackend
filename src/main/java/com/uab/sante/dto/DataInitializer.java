@@ -327,6 +327,7 @@ public class DataInitializer implements CommandLineRunner {
         Role roleBiologiste = roleRepository.findByCode("BIOLOGISTE").orElse(null);
         Role roleCaissierLaboratoire = roleRepository.findByCode("CAISSIER_LABORATOIRE").orElse(null);
         Role roleAdminStructure = roleRepository.findByCode("ADMIN_STRUCTURE").orElse(null);
+        Role roleOperateurUab = roleRepository.findByCode("UAB_OPERATEUR").orElse(null);
 
         // Créer l'admin UAB
         if (roleUABAdmin != null && utilisateurRepository.findByEmail("admin@uab.ci").isEmpty()) {
